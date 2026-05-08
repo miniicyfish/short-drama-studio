@@ -40,6 +40,11 @@ const zhaoCharacter: VNCharacter = {
 };
 
 const MAX_VN_TEXT_LENGTH = 36;
+const CASTING_LIMIT = {
+  total: 4,
+  female: 2,
+  male: 2,
+};
 
 function splitTextForVN(text: string) {
   if (text.length <= MAX_VN_TEXT_LENGTH) return [text];
@@ -583,6 +588,10 @@ function actorCharacter(actor?: Actor | null): VNCharacter[] {
   ];
 }
 
+function genderLabel(gender: Actor['gender']) {
+  return gender === 'female' ? '女' : '男';
+}
+
 function actorMeetLines(actor: Actor): VNLine[] {
   const target = {
     'sun-manli': ['美甲店门口', '老赵把你带到小区美甲店门口。玻璃门上贴着“今日爆款：富贵千金甲”。', '老板娘正在给客人讲前男友的八卦，听到“豪门离婚”四个字，剪刀停在半空。'],
@@ -697,6 +706,17 @@ export default function Home() {
     () => actors.filter((actor) => selectedActorIds.includes(actor.id)),
     [selectedActorIds]
   );
+  const selectedGenderCounts = useMemo(
+    () => ({
+      female: selectedActors.filter((actor) => actor.gender === 'female').length,
+      male: selectedActors.filter((actor) => actor.gender === 'male').length,
+    }),
+    [selectedActors]
+  );
+  const castingReady =
+    selectedActorIds.length === CASTING_LIMIT.total &&
+    selectedGenderCounts.female === CASTING_LIMIT.female &&
+    selectedGenderCounts.male === CASTING_LIMIT.male;
   const casting = useMemo(() => assignCasting(selectedActors), [selectedActors]);
 
   const currentIntro = introLines[introIndex];
@@ -739,7 +759,12 @@ export default function Home() {
   const toggleActor = (actorId: string) => {
     setSelectedActorIds((current) => {
       if (current.includes(actorId)) return current.filter((id) => id !== actorId);
-      if (current.length >= 4) return current;
+      const actor = actors.find((item) => item.id === actorId);
+      if (!actor || current.length >= CASTING_LIMIT.total) return current;
+      const sameGenderSelected = actors.filter(
+        (item) => current.includes(item.id) && item.gender === actor.gender
+      ).length;
+      if (sameGenderSelected >= CASTING_LIMIT[actor.gender]) return current;
       return [...current, actorId];
     });
   };
@@ -901,7 +926,7 @@ export default function Home() {
         subtitle="开拍前"
         kind="task"
         speaker="任务 01｜从素人池里捞 4 个人"
-        text={'目标：选出今天能到、能撑住豪门疯戏的班底。\n限制：只能选 4 个。盒饭和预算不够全上。'}
+        text={'目标：选出今天能到、能撑住豪门疯戏的班底。\n限制：只能选 4 个，其中女演员 2 个、男演员 2 个。盒饭和预算不够全上。'}
         characters={[zhaoCharacter]}
         controls={
           <button onClick={() => setStage('casting')} className="vn-control-button">
@@ -924,7 +949,7 @@ export default function Home() {
         characters={[zhaoCharacter]}
         controls={
           <button
-            disabled={selectedActorIds.length !== 4}
+            disabled={!castingReady}
             onClick={() => {
               setActivePersuasionActorIndex(0);
               setPersuasionSceneIndex(0);
@@ -938,23 +963,53 @@ export default function Home() {
           </button>
         }
         overlay={
-          <div className="mx-auto grid max-h-[58vh] max-w-5xl gap-3 overflow-y-auto md:grid-cols-3">
+          <div className="mx-auto max-h-[58vh] max-w-5xl overflow-y-auto">
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="border border-border bg-bg-deep/82 px-3 py-2 text-text-secondary">
+                已选 {selectedActorIds.length}/{CASTING_LIMIT.total}
+              </span>
+              <span className={`border px-3 py-2 ${
+                selectedGenderCounts.female === CASTING_LIMIT.female
+                  ? 'border-accent-gold text-accent-gold'
+                  : 'border-border text-text-secondary'
+              }`}>
+                女演员 {selectedGenderCounts.female}/{CASTING_LIMIT.female}
+              </span>
+              <span className={`border px-3 py-2 ${
+                selectedGenderCounts.male === CASTING_LIMIT.male
+                  ? 'border-accent-gold text-accent-gold'
+                  : 'border-border text-text-secondary'
+              }`}>
+                男演员 {selectedGenderCounts.male}/{CASTING_LIMIT.male}
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
             {actors.map((actor) => {
               const selected = selectedActorIds.includes(actor.id);
+              const genderFull =
+                !selected && selectedGenderCounts[actor.gender] >= CASTING_LIMIT[actor.gender];
+              const totalFull = !selected && selectedActorIds.length >= CASTING_LIMIT.total;
+              const disabled = genderFull || totalFull;
               return (
                 <button
                   key={actor.id}
+                  disabled={disabled}
                   onClick={() => toggleActor(actor.id)}
                   className={`border bg-bg-deep/82 p-3 text-left backdrop-blur transition-colors ${
                     selected ? 'border-accent-gold' : 'border-border hover:border-accent-blue'
-                  }`}
+                  } ${disabled ? 'cursor-not-allowed opacity-45' : ''}`}
                 >
                   <div className="mb-3 flex gap-3">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden border border-border">
                       <Image src={actor.avatar} alt={actor.name} fill sizes="64px" className="object-cover" />
                     </div>
                     <div>
-                      <div className="font-bold text-accent-gold">{actor.name}</div>
+                      <div className="flex items-center gap-2 font-bold text-accent-gold">
+                        <span>{actor.name}</span>
+                        <span className="border border-border px-1.5 py-0.5 text-[10px] text-text-dim">
+                          {genderLabel(actor.gender)}
+                        </span>
+                      </div>
                       <div className="text-xs text-accent-blue">{actor.label}</div>
                     </div>
                   </div>
@@ -963,6 +1018,7 @@ export default function Home() {
                 </button>
               );
             })}
+            </div>
           </div>
         }
       />

@@ -11,6 +11,7 @@ export interface Project {
 export interface Actor {
   id: string;
   name: string;
+  gender: 'female' | 'male';
   label: string;
   realIdentity: string;
   hook: string;

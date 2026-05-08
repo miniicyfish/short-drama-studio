@@ -55,6 +55,7 @@ export const actors: Actor[] = [
   {
     id: 'lin-xiaoman',
     name: '林小满',
+    gender: 'female',
     label: '地下偶像退役成员',
     realIdentity: '前地下偶像成员，曾因被恶意解读的“偷吃”词条炎上退团。',
     hook: '她最懂镜头，也最怕镜头后的人把一句话听成另一个意思。',
@@ -69,6 +70,7 @@ export const actors: Actor[] = [
   {
     id: 'sun-manli',
     name: '孙曼丽',
+    gender: 'female',
     label: '美甲店老板娘',
     realIdentity: '小区美甲店老板娘，长期听客人聊感情八卦，也护着王娜娜。',
     hook: '她不是在演短剧，她是在给这段关系做诊断。',
@@ -83,6 +85,7 @@ export const actors: Actor[] = [
   {
     id: 'wang-nana',
     name: '王娜娜',
+    gender: 'female',
     label: '美甲店临时工 / 快手小主播预备役',
     realIdentity: '美甲店临时帮工，常拍快手对口型和变装，正被本地直播公会画饼。',
     hook: '她不是没机会，她只是太容易相信每一个说她能火的人。',
@@ -97,6 +100,7 @@ export const actors: Actor[] = [
   {
     id: 'zhang-jiahao',
     name: '张嘉豪',
+    gender: 'male',
     label: '夜场商务男模',
     realIdentity: '夜场商务演出男模，常接生日局、富婆局和酒吧主题夜。',
     hook: '他不是不会演深情，他只是会把所有深情都演成“姐姐今晚开心吗”。',
@@ -111,6 +115,7 @@ export const actors: Actor[] = [
   {
     id: 'qiu-peng',
     name: '邱鹏',
+    gender: 'male',
     label: '失业高中同学',
     realIdentity: '导演的高中同学，最近失业，朋友圈常发低谷期重启文案。',
     hook: '他不是来演戏的，他是来证明自己还没废。',
@@ -125,6 +130,7 @@ export const actors: Actor[] = [
   {
     id: 'guo-gang',
     name: '郭港',
+    gender: 'male',
     label: '夜班保安',
     realIdentity: '主角前司写字楼夜班保安，脸和身形很有压迫感。',
     hook: '长得像幕后大佬，其实只是困。',
