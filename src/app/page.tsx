@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNCharacter, VNLineKind } from '@/components/VNStage';
@@ -29,7 +29,51 @@ const zhaoCharacter: VNCharacter = {
   active: true,
 };
 
-const introLines: VNLine[] = [
+const MAX_VN_TEXT_LENGTH = 36;
+
+function splitTextForVN(text: string) {
+  if (text.length <= MAX_VN_TEXT_LENGTH) return [text];
+  const sentenceParts = text.match(/[^。！？；]+[。！？；]?/g) || [text];
+  const parts = sentenceParts.flatMap((part) => {
+    if (part.length <= MAX_VN_TEXT_LENGTH) return [part];
+    return part.match(/[^，、]+[，、]?/g) || [part];
+  });
+  const chunks: string[] = [];
+  let current = '';
+  parts.forEach((part) => {
+    if (!current) {
+      current = part;
+      return;
+    }
+    if ((current + part).length <= MAX_VN_TEXT_LENGTH) {
+      current += part;
+      return;
+    }
+    chunks.push(current);
+    current = part;
+  });
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+function splitVNLines(lines: VNLine[]) {
+  return lines.flatMap((line) => {
+    const parts = splitTextForVN(line.text);
+    if (parts.length === 1) return [line];
+    return parts.map((text, index) => ({
+      ...line,
+      id: `${line.id}-${index + 1}`,
+      text,
+    }));
+  });
+}
+
+function autoDelayFor(text?: string) {
+  const length = text?.length || 0;
+  return Math.min(4200, Math.max(2100, 1500 + length * 58));
+}
+
+const rawIntroLines: VNLine[] = [
   {
     id: 'awards-01',
     background: '/pixels/scene-gu-banquet-hall.png',
@@ -506,6 +550,8 @@ const introLines: VNLine[] = [
   },
 ];
 
+const introLines = splitVNLines(rawIntroLines);
+
 const shootRules = [
   '豪宅只租半天。超一分钟，房东就会从“艺术支持者”变成“按小时收费者”。',
   '群演是临时叫来的，站久了要补钱；站太久，还会开始问自己到底是不是顾家亲戚。',
@@ -522,6 +568,7 @@ export default function Home() {
   const [selectedActorIds, setSelectedActorIds] = useState<string[]>([]);
   const [words, setWords] = useState<Record<string, string>>({});
   const [recruitResults, setRecruitResults] = useState<RecruitResult[]>([]);
+  const [autoPlay, setAutoPlay] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -544,7 +591,7 @@ export default function Home() {
             active: true,
           }
         : null;
-      return [
+      return splitVNLines([
         ...(result.visibleConversation || []).map((line, index): VNLine => ({
           id: `${result.actorId}-${index}`,
           background: '/pixels/scene-gu-side-corridor.png',
@@ -565,7 +612,7 @@ export default function Home() {
           text: result.visibleHint || '你不知道他真正怎么理解了这句话，但会影响后续拍摄。',
           characters: actorCharacter ? [actorCharacter] : [],
         },
-      ];
+      ]);
     });
   }, [recruitResults]);
   const currentPersuasionLine = persuasionLines[persuasionLineIndex];
@@ -621,6 +668,32 @@ export default function Home() {
     setStage('pre-shoot');
   };
 
+  useEffect(() => {
+    if (!autoPlay) return;
+    if (stage === 'intro' && currentIntro) {
+      const timer = window.setTimeout(nextIntro, autoDelayFor(currentIntro.text));
+      return () => window.clearTimeout(timer);
+    }
+    if (stage === 'persuasion-playback' && currentPersuasionLine) {
+      const timer = window.setTimeout(nextPersuasionLine, autoDelayFor(currentPersuasionLine.text));
+      return () => window.clearTimeout(timer);
+    }
+  }, [autoPlay, currentIntro, currentPersuasionLine, introIndex, persuasionLineIndex, stage]);
+
+  const playbackControls = (onNext: () => void, isLast: boolean, lastLabel: string) => (
+    <div className="vn-playback-controls">
+      <button
+        onClick={() => setAutoPlay((current) => !current)}
+        className={`vn-control-button secondary ${autoPlay ? '' : 'is-paused'}`}
+      >
+        {autoPlay ? '自动中' : '手动中'}
+      </button>
+      <button onClick={onNext} className="vn-control-button">
+        {isLast ? lastLabel : autoPlay ? '跳过' : '下一句'}
+      </button>
+    </div>
+  );
+
   const start = () => {
     const session: GameSession = {
       project,
@@ -646,11 +719,7 @@ export default function Home() {
         text={currentIntro.text}
         kind={currentIntro.kind}
         characters={currentIntro.characters}
-        controls={
-          <button onClick={nextIntro} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
-            {introIndex >= introLines.length - 1 ? '开始捞人' : '下一句'}
-          </button>
-        }
+        controls={playbackControls(nextIntro, introIndex >= introLines.length - 1, '开始捞人')}
       />
     );
   }
@@ -662,7 +731,7 @@ export default function Home() {
         title="6 选 4 捞人"
         subtitle="老赵的素人池"
         speaker="老赵"
-        text="我给你摸了六个。每个都能来，每个都多少有点问题。你挑四个，别问为什么不全上，盒饭也不是天上掉下来的。"
+        text="我给你摸了六个。每个都能来，每个都多少有点问题。"
         kind="dialogue"
         characters={[zhaoCharacter]}
         controls={
@@ -713,7 +782,7 @@ export default function Home() {
         title="逐个说服入组"
         subtitle="填一个词，说出口"
         speaker="老赵"
-        text="这些人不是专业演员。你不能跟他们讲梦想，梦想太贵。你就一句话，说到那个点，他就来；说歪了，他也来，但开机的时候会歪得更具体。"
+        text="你就一句话，说到那个点，他就来；说歪了，开机会更歪。"
         kind="dialogue"
         characters={[zhaoCharacter]}
         controls={
@@ -768,11 +837,7 @@ export default function Home() {
         text={currentPersuasionLine.text}
         kind={currentPersuasionLine.kind}
         characters={currentPersuasionLine.characters}
-        controls={
-          <button onClick={nextPersuasionLine} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
-            {persuasionLineIndex >= persuasionLines.length - 1 ? '去片场' : '下一句'}
-          </button>
-        }
+        controls={playbackControls(nextPersuasionLine, persuasionLineIndex >= persuasionLines.length - 1, '去片场')}
       />
     );
   }
@@ -783,7 +848,7 @@ export default function Home() {
       title="开机前"
       subtitle="老赵算账"
       speaker="老赵"
-      text="记住，不是你不能管，是这个组经不起你每句都管。你能救最要命的地方，救不了所有地方。"
+      text="不是你不能管，是这个组经不起你每句都管。救最要命的地方。"
       kind="dialogue"
       characters={[zhaoCharacter]}
       controls={

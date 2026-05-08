@@ -42,11 +42,30 @@ function kindLabel(kind: VNLineKind) {
   }[kind];
 }
 
-function textClass(kind: VNLineKind) {
-  if (kind === 'action') return 'text-accent-gold';
-  if (kind === 'inner') return 'text-accent-blue italic';
-  if (kind === 'system') return 'text-text-secondary';
-  return 'text-text-primary';
+function frameClass(kind: VNLineKind) {
+  return {
+    narration: 'vn-frame vn-frame-narration',
+    dialogue: 'vn-frame vn-frame-dialogue',
+    action: 'vn-frame vn-frame-action',
+    inner: 'vn-frame vn-frame-inner',
+    system: 'vn-frame vn-frame-system',
+  }[kind];
+}
+
+function bodyClass(kind: VNLineKind) {
+  return {
+    narration: 'vn-text vn-text-narration',
+    dialogue: 'vn-text vn-text-dialogue',
+    action: 'vn-text vn-text-action',
+    inner: 'vn-text vn-text-inner',
+    system: 'vn-text vn-text-system',
+  }[kind];
+}
+
+function formatText(kind: VNLineKind, value: string) {
+  if (kind === 'dialogue') return `“${value}”`;
+  if (kind === 'action') return value;
+  return value;
 }
 
 export default function VNStage({
@@ -106,19 +125,15 @@ export default function VNStage({
         <div className="mx-auto max-w-5xl">
           {children}
           {text && (
-            <div className="vn-dialogue-frame animate-fade-in">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="border border-accent-gold/45 bg-bg-deep/70 px-3 py-1 text-sm font-bold text-accent-gold">
-                    {speaker || kindLabel(kind)}
-                  </span>
-                  <span className="text-[11px] text-text-dim">{kindLabel(kind)}</span>
+            <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
+              <div className="vn-frame-head">
+                <div className="vn-frame-name">
+                  <span className="vn-frame-kind">{kindLabel(kind)}</span>
+                  <span className="vn-frame-speaker">{speaker || kindLabel(kind)}</span>
                 </div>
                 {controls}
               </div>
-              <p className={`min-h-20 text-lg leading-9 md:text-xl ${textClass(kind)}`}>
-                {kind === 'dialogue' ? `“${text}”` : kind === 'action' ? `[${text}]` : text}
-              </p>
+              <p className={bodyClass(kind)}>{formatText(kind, text)}</p>
             </div>
           )}
         </div>
