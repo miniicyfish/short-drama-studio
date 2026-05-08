@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  --bg-deep: #0a0e14;
+  --bg-surface: #111921;
+  --bg-card: #1a2332;
+  --text-primary: #e0dcd0;
+  --text-secondary: #8a9bb0;
+  --text-dim: #4a5568;
+  --accent-gold: #c9a96e;
+  --accent-blue: #4a8db7;
+  --accent-red: #b85c5c;
+  --border: #2a3545;
+}
+
+@theme inline {
+  --color-bg-deep: var(--bg-deep);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-card: var(--bg-card);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-dim: var(--text-dim);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-red: var(--accent-red);
+  --color-border: var(--border);
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+/* 像素风文字效果 */
+.pixel-text {
+  font-family: "Courier New", monospace;
+  letter-spacing: 0.05em;
+}
+
+/* 打字机效果 */
+@keyframes typewriter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: typewriter 0.4s ease-out forwards;
+}
+
+/* 呼吸灯效果（工具按钮） */
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.character-standee {
+  -webkit-mask-image:
+    linear-gradient(to bottom, black 0%, black 74%, transparent 100%),
+    radial-gradient(ellipse at center, black 0%, black 58%, transparent 76%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, black 0%, black 74%, transparent 100%),
+    radial-gradient(ellipse at center, black 0%, black 58%, transparent 76%);
+  mask-composite: intersect;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* 加载动画 */
+@keyframes dot-pulse {
+  0%, 80%, 100% { opacity: 0.3; }
+  40% { opacity: 1; }
+}
+
+.loading-dots span {
+  animation: dot-pulse 1.4s infinite ease-in-out;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
