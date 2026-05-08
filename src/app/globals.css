@@ -381,11 +381,12 @@ body {
 }
 
 .vn-bottom-shooting {
+  left: 340px;
   right: 340px;
 }
 
 .vn-bottom-shooting > div {
-  max-width: min(980px, calc(100vw - 390px));
+  max-width: min(980px, calc(100vw - 720px));
 }
 
 .vn-bottom-shooting .vn-frame-dialogue,
@@ -542,6 +543,7 @@ body {
 
 @media (max-width: 900px) {
   .vn-bottom-shooting {
+    left: 0;
     right: 0;
   }
 
