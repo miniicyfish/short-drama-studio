@@ -25,6 +25,7 @@ interface VNStageProps {
   overlay?: ReactNode;
   controls?: ReactNode;
   history?: VNHistoryLine[];
+  layout?: 'default' | 'shooting';
 }
 
 export interface VNHistoryLine {
@@ -89,6 +90,7 @@ export default function VNStage({
   overlay,
   controls,
   history = [],
+  layout = 'default',
 }: VNStageProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const displaySpeaker =
@@ -188,7 +190,7 @@ export default function VNStage({
         <div className="absolute inset-0 z-20 flex items-center justify-center p-4">{frame}</div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-10 p-4 md:p-6">
+      <div className={`absolute inset-x-0 bottom-0 z-10 p-4 md:p-6 ${layout === 'shooting' ? 'vn-bottom-shooting' : ''}`}>
         <div className="mx-auto max-w-5xl">
           {children}
           {kind !== 'task' && frame}

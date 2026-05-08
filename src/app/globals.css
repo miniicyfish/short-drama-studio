@@ -329,6 +329,28 @@ body {
   text-align: center;
 }
 
+.vn-bottom-shooting {
+  right: 340px;
+}
+
+.vn-bottom-shooting > div {
+  max-width: min(980px, calc(100vw - 390px));
+}
+
+.vn-bottom-shooting .vn-frame-dialogue,
+.vn-bottom-shooting .vn-frame-action,
+.vn-bottom-shooting .vn-frame-narration,
+.vn-bottom-shooting .vn-frame-inner,
+.vn-bottom-shooting .vn-frame-system {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+}
+
+.vn-bottom-shooting .vn-frame-inner {
+  max-width: 820px;
+}
+
 .vn-playback-controls {
   display: flex;
   flex: none;
@@ -463,6 +485,14 @@ body {
 }
 
 @media (max-width: 900px) {
+  .vn-bottom-shooting {
+    right: 0;
+  }
+
+  .vn-bottom-shooting > div {
+    max-width: 100%;
+  }
+
   .play-hud {
     grid-template-columns: 1fr;
     max-height: 46vh;

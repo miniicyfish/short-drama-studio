@@ -507,6 +507,7 @@ export default function PlayPage() {
         text={currentLine?.text || (loading ? loading : '正在准备片场。')}
         kind={vnKindFromLine(currentLine?.type)}
         characters={playCharacters}
+        layout="shooting"
         controls={
           <div className="flex items-center gap-2">
             <button
