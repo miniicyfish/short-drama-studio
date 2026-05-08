@@ -60,6 +60,13 @@ function vnKindFromLine(type?: ShootLine['type']): VNLineKind {
   return 'system';
 }
 
+function hideDirectorLines(acts: ActDraft[]) {
+  return acts.map((act) => ({
+    ...act,
+    lines: act.lines.filter((line) => line.type !== 'director' && line.speaker !== '导演'),
+  }));
+}
+
 export default function PlayPage() {
   const router = useRouter();
   const [session, setSession] = useState<GameSession | null>(null);
@@ -139,7 +146,7 @@ export default function PlayPage() {
         });
         if (!res.ok) throw new Error('生成拍摄稿失败');
         const data = (await res.json()) as { episodeDraft: ActDraft[] };
-        setActs(data.episodeDraft);
+        setActs(hideDirectorLines(data.episodeDraft));
       } catch (err) {
         setError(err instanceof Error ? err.message : '生成拍摄稿失败');
       } finally {
@@ -548,7 +555,6 @@ export default function PlayPage() {
               <div className="max-w-2xl border border-border bg-bg-deep/78 p-4 text-sm leading-7 text-text-secondary backdrop-blur">
                 <div className="mb-1 text-xs text-accent-blue">本幕功能</div>
                 <p>{currentSkeleton?.mustHappen || '正在准备片场。'}</p>
-                {currentSkeleton && <p className="mt-2 text-accent-red/85">炸点：{currentSkeleton.bombPoint}</p>}
                 <p className="mt-2 text-xs text-text-dim">
                   本幕干预 {usedThisAct}/{interventionLimit} · 片场每一秒都在烧钱
                 </p>
