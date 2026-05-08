@@ -491,7 +491,7 @@ export default function PlayPage() {
             id: currentSpeakerCasting?.scriptRoleId || currentLine?.speaker || 'speaker',
             name: currentSpeakerCasting?.scriptRoleName || currentLine?.speaker || '角色',
             image: currentSpeakerPortrait,
-            position: 'right' as const,
+            position: 'center' as const,
             active: true,
           },
         ]
@@ -550,9 +550,9 @@ export default function PlayPage() {
           </div>
         }
         overlay={
-          <div className="grid gap-4 md:grid-cols-[1fr_320px]">
-            <div className="space-y-3">
-              <div className="max-w-2xl border border-border bg-bg-deep/78 p-4 text-sm leading-7 text-text-secondary backdrop-blur">
+          <div className="play-hud">
+            <div className="play-left-stack">
+              <div className="play-panel">
                 <div className="mb-1 text-xs text-accent-blue">本幕功能</div>
                 <p>{currentSkeleton?.mustHappen || '正在准备片场。'}</p>
                 <p className="mt-2 text-xs text-text-dim">
@@ -561,7 +561,7 @@ export default function PlayPage() {
               </div>
 
               {historyOpen && (
-                <div className="max-h-64 max-w-2xl overflow-y-auto border border-border bg-bg-deep/86 p-3 backdrop-blur">
+                <div className="play-panel max-h-64 overflow-y-auto p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-accent-blue">最近几句</div>
                     <button onClick={() => setHistoryOpen(false)} className="text-xs text-text-dim">
@@ -582,16 +582,16 @@ export default function PlayPage() {
               )}
 
               {currentLine?.innerThought && (
-                <div className="max-w-2xl border border-accent-blue/35 bg-accent-blue/10 p-3 text-xs leading-6 text-accent-blue backdrop-blur">
+                <div className="play-inner-note">
                   画外内心：{currentLine.innerThought}
                 </div>
               )}
               {loading && <LoadingIndicator text={loading} />}
-              {error && <div className="max-w-2xl border border-accent-red/40 bg-accent-red/10 p-3 text-sm text-accent-red">{error}</div>}
+              {error && <div className="play-panel border-accent-red/40 bg-accent-red/10 text-sm text-accent-red">{error}</div>}
             </div>
 
-            <div className="space-y-3">
-              <div className="border border-border bg-bg-deep/82 p-4 backdrop-blur">
+            <aside className="play-sidebar">
+              <div className="play-panel">
                 <div className="mb-3 text-sm font-bold text-accent-gold">片场状态</div>
                 <div className="grid grid-cols-4 gap-2 md:grid-cols-2">
                   {(Object.keys(stats) as Array<keyof Stats>).map((key) => (
@@ -603,7 +603,7 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <div className="border border-border bg-bg-deep/82 p-4 backdrop-blur">
+              <div className="play-panel">
                 <div className="mb-3 text-sm font-bold text-accent-gold">导演工具</div>
                 <div className="grid grid-cols-2 gap-2">
                   {tools.map((tool) => (
@@ -630,7 +630,7 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <div className="border border-border bg-bg-deep/82 p-4 backdrop-blur">
+              <div className="play-panel">
                 <div className="mb-3 text-sm font-bold text-accent-gold">片场事实账本</div>
                 <div className="max-h-40 space-y-2 overflow-y-auto text-xs leading-5 text-text-dim">
                   {canonLedger.length === 0 ? (
@@ -642,7 +642,7 @@ export default function PlayPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
         }
       >
