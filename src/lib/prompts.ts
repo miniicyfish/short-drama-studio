@@ -86,8 +86,8 @@ export function buildDraftPrompt(input: DraftRequest) {
 1. 每幕必须严格参考 scriptSkeletonAct.beats 生成，不能只复述 mustHappen。
 2. beat 是剧本节拍，不等于最终逐句文本。每个关键 beat 可以展开成 1-3 行。
 3. 每幕行数必须遵守 targetLineCount，通常 18-26 行；全片目标约 170-210 行，贴近原剧本第一集体量。
-4. 输出要混合镜头动作、台词、内心 OS、导演可见事故点，不要把多个动作和台词压成一句摘要。
-4a. 玩家可见 lines 里禁止出现“雷点”“炸点”“导演可见”“事故点”“AI 可根据”“本幕最大”等内部设计标注。
+4. 输出要混合镜头动作、台词、内心 OS，不要把多个动作和台词压成一句摘要；内部事故判断只能放在 type=director，不能伪装成镜头或台词。
+4a. 玩家可见 lines 里禁止出现“雷点”“炸点”“导演可见”“事故点”“AI 可根据”“本幕最大”“如果前文”“同步变形”“机械保留”“工具改写”“canonLedger”“必须保留功能”等内部设计/编排标注。
 5. 每行都要有 lineId，格式如 act_01_l01；尽量填写 sourceBeatId，对应来源 beat。
 6. beat.mustKeep 为 true 的功能必须被保留，但具体台词/动作可以受演员入组心态轻微变形。
 7. 每幕都要有 defaultOutcome：你不干预时，本幕写入片场事实账本的结果。
@@ -141,7 +141,8 @@ export function buildInterventionPrompt(input: InterventionRequest) {
 5. 不要只写局部反馈。必须说明后续哪些幕会受影响。
 6. patchedRemainingLines 只重写当前幕剩余内容；剩余幕通过 globalPatch 在进入时再修订。
 7. 如果当前工具改变了关键动作或关键台词，futureDirectives 必须说明后续 beat 如何同步变形。
-8. statDelta 数值要克制，单项通常在 -20 到 +20 之间。`;
+8. replacementCurrentLine 和 patchedRemainingLines 是玩家可见文本，禁止出现“雷点”“炸点”“如果前文”“同步变形”“机械保留”“工具改写”“canonLedger”等幕后编排说明。
+9. statDelta 数值要克制，单项通常在 -20 到 +20 之间。`;
 
   const user = `你在当前句使用工具，请返回当前幕补丁和全局片场事实补丁。
 

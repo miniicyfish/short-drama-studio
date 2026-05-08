@@ -187,8 +187,6 @@ export function mockDraft(input: DraftRequest): { episodeDraft: ActDraft[] } {
         }
       });
 
-      addLine('导演', `这一幕的片场雷点是：${act.bombPoint}`, 'critical', 'director');
-
       while (lines.length < act.targetLineCount.min) {
         addLine(
           '镜头',

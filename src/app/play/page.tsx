@@ -23,6 +23,7 @@ import {
   Stats,
   ToolType,
 } from '@/lib/gameTypes';
+import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
@@ -58,13 +59,6 @@ function vnKindFromLine(type?: ShootLine['type']): VNLineKind {
   if (type === 'action' || type === 'director') return 'action';
   if (type === 'inner') return 'inner';
   return 'system';
-}
-
-function hideDirectorLines(acts: ActDraft[]) {
-  return acts.map((act) => ({
-    ...act,
-    lines: act.lines.filter((line) => line.type !== 'director' && line.speaker !== '导演'),
-  }));
 }
 
 export default function PlayPage() {
@@ -146,7 +140,7 @@ export default function PlayPage() {
         });
         if (!res.ok) throw new Error('生成拍摄稿失败');
         const data = (await res.json()) as { episodeDraft: ActDraft[] };
-        setActs(hideDirectorLines(data.episodeDraft));
+        setActs(sanitizeVisibleActDrafts(data.episodeDraft));
       } catch (err) {
         setError(err instanceof Error ? err.message : '生成拍摄稿失败');
       } finally {
@@ -155,6 +149,20 @@ export default function PlayPage() {
     };
     generateDraft();
   }, [acts.length, loading, session]);
+
+  useEffect(() => {
+    if (acts.length === 0) return;
+    const sanitizedActs = sanitizeVisibleActDrafts(acts);
+    const removedLines = sanitizedActs.some(
+      (act, index) => act.lines.length !== acts[index]?.lines.length
+    );
+    if (!removedLines) return;
+    setActs(sanitizedActs);
+    setLineIndex((current) => {
+      const maxIndex = Math.max(0, (sanitizedActs[actIndex]?.lines.length || 1) - 1);
+      return Math.min(current, maxIndex);
+    });
+  }, [actIndex, acts]);
 
   const currentAct = acts[actIndex];
   const currentLine = currentAct?.lines[lineIndex];
@@ -219,8 +227,9 @@ export default function PlayPage() {
         });
         if (!res.ok) throw new Error('修订下一幕失败');
         const data = (await res.json()) as { revisedAct: ActDraft };
+        const revisedAct = sanitizeVisibleActDrafts([data.revisedAct])[0];
         setActs((current) =>
-          current.map((item, index) => (index === nextIndex ? data.revisedAct : item))
+          current.map((item, index) => (index === nextIndex ? revisedAct : item))
         );
         setRevisedActs((current) => ({ ...current, [nextAct.actId]: true }));
       } catch (err) {
@@ -299,14 +308,17 @@ export default function PlayPage() {
       data.immediate.replacementCurrentLine,
       ...data.immediate.patchedRemainingLines,
     ];
+    const sanitizedAct = sanitizeVisibleActDrafts([
+      {
+        ...currentAct,
+        lines: newLines,
+        defaultOutcome: data.actOutcome,
+      },
+    ])[0];
     setActs((current) =>
       current.map((act, index) =>
         index === actIndex
-          ? {
-              ...act,
-              lines: newLines,
-              defaultOutcome: data.actOutcome,
-            }
+          ? sanitizedAct
           : act
       )
     );
@@ -554,8 +566,8 @@ export default function PlayPage() {
           <div className="play-hud">
             <div className="play-left-stack">
               <div className="play-panel">
-                <div className="mb-1 text-xs text-accent-blue">本幕功能</div>
-                <p>{currentSkeleton?.mustHappen || '正在准备片场。'}</p>
+                <div className="mb-1 text-xs text-accent-blue">场记板</div>
+                <p>{currentAct?.title || '正在准备片场。'}</p>
                 <p className="mt-2 text-xs text-text-dim">
                   本幕干预 {usedThisAct}/{interventionLimit} · 片场每一秒都在烧钱
                 </p>
@@ -632,10 +644,10 @@ export default function PlayPage() {
               </div>
 
               <div className="play-panel">
-                <div className="mb-3 text-sm font-bold text-accent-gold">片场事实账本</div>
+                <div className="mb-3 text-sm font-bold text-accent-gold">已拍成的事实</div>
                 <div className="max-h-40 space-y-2 overflow-y-auto text-xs leading-5 text-text-dim">
                   {canonLedger.length === 0 ? (
-                    <p>还没有事故被写进本局事实。</p>
+                    <p>还没有改过拍法。</p>
                   ) : (
                     canonLedger.slice(-6).map((entry, index) => (
                       <p key={`${entry.patchId || entry.actId}-${index}`}>· {entry.memory}</p>
