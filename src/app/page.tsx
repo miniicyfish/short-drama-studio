@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
-import VNStage, { VNCharacter, VNLineKind } from '@/components/VNStage';
+import VNStage, { VNCharacter, VNHistoryLine, VNLineKind } from '@/components/VNStage';
 import { actors, assignCasting, initialStats, project } from '@/lib/gameData';
 import { Actor, GameSession, RecruitResult } from '@/lib/gameTypes';
 
@@ -80,6 +80,14 @@ function splitVNLines(lines: VNLine[]) {
 function autoDelayFor(text?: string) {
   const length = text?.length || 0;
   return Math.min(4200, Math.max(2100, 1500 + length * 58));
+}
+
+function historyFromLines(lines: VNLine[], currentIndex: number): VNHistoryLine[] {
+  return lines.slice(Math.max(0, currentIndex - 11), currentIndex + 1).map((line) => ({
+    speaker: line.speaker,
+    text: line.text,
+    kind: line.kind,
+  }));
 }
 
 const rawIntroLines: VNLine[] = [
@@ -816,6 +824,7 @@ export default function Home() {
         text={currentIntro.text}
         kind={currentIntro.kind}
         characters={currentIntro.characters}
+        history={historyFromLines(introLines, introIndex)}
         controls={playbackControls(nextIntro, introIndex >= introLines.length - 1, '开始捞人')}
       />
     );
@@ -907,6 +916,7 @@ export default function Home() {
         text={currentPersuasionSceneLine.text}
         kind={currentPersuasionSceneLine.kind}
         characters={currentPersuasionSceneLine.characters}
+        history={historyFromLines(persuasionSceneLines, persuasionSceneIndex)}
         controls={playbackControls(
           nextPersuasionSceneLine,
           persuasionSceneIndex >= persuasionSceneLines.length - 1,
@@ -995,6 +1005,7 @@ export default function Home() {
         text={currentPersuasionLine.text}
         kind={currentPersuasionLine.kind}
         characters={currentPersuasionLine.characters}
+        history={historyFromLines(persuasionLines, persuasionLineIndex)}
         controls={playbackControls(nextPersuasionLine, persuasionLineIndex >= persuasionLines.length - 1, '去片场')}
       />
     );

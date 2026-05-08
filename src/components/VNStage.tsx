@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 
 export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'system' | 'task';
 
@@ -24,6 +24,13 @@ interface VNStageProps {
   children?: ReactNode;
   overlay?: ReactNode;
   controls?: ReactNode;
+  history?: VNHistoryLine[];
+}
+
+export interface VNHistoryLine {
+  speaker?: string;
+  text: string;
+  kind?: VNLineKind;
 }
 
 const positionClass = {
@@ -81,7 +88,9 @@ export default function VNStage({
   children,
   overlay,
   controls,
+  history = [],
 }: VNStageProps) {
+  const [historyOpen, setHistoryOpen] = useState(false);
   const displaySpeaker =
     speaker ||
     (kind === 'task' ? kindLabel(kind) : undefined);
@@ -121,6 +130,36 @@ export default function VNStage({
         <div className="absolute left-4 top-4 border border-border bg-bg-deep/70 px-4 py-3 backdrop-blur md:left-6 md:top-6">
           <div className="text-xs text-accent-blue">{subtitle}</div>
           <div className="mt-1 text-sm font-bold text-accent-gold">{title}</div>
+        </div>
+      )}
+
+      {history.length > 0 && kind !== 'task' && (
+        <div className="absolute right-4 top-4 z-30 md:right-6 md:top-6">
+          <button
+            onClick={() => setHistoryOpen((current) => !current)}
+            className="vn-history-button"
+          >
+            记录
+          </button>
+          {historyOpen && (
+            <div className="vn-history-panel">
+              <div className="mb-3 text-xs text-accent-gold">最近记录</div>
+              <div className="space-y-3">
+                {history.slice(-12).map((item, index) => (
+                  <div key={`${index}-${item.text}`} className="vn-history-line">
+                    <div className="vn-history-meta">
+                      {item.kind === 'narration' || item.kind === 'inner'
+                        ? kindLabel(item.kind)
+                        : item.speaker || '片场'}
+                    </div>
+                    <div className="vn-history-text">
+                      {item.kind === 'dialogue' ? formatText('dialogue', item.text) : item.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

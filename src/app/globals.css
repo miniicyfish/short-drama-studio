@@ -364,6 +364,53 @@ body {
   color: #83c7e8;
 }
 
+.vn-history-button {
+  border: 1px solid rgba(138, 155, 176, 0.42);
+  background: rgba(10, 14, 20, 0.68);
+  padding: 9px 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.vn-history-button:hover {
+  border-color: rgba(201, 169, 110, 0.6);
+  color: var(--accent-gold);
+}
+
+.vn-history-panel {
+  position: absolute;
+  right: 0;
+  top: 46px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: 54vh;
+  overflow-y: auto;
+  border: 1px solid rgba(138, 155, 176, 0.34);
+  background:
+    linear-gradient(180deg, rgba(17, 25, 33, 0.96), rgba(10, 14, 20, 0.97)),
+    radial-gradient(circle at 100% 0%, rgba(74, 141, 183, 0.14), transparent 40%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.52);
+  padding: 14px;
+  backdrop-filter: blur(12px);
+}
+
+.vn-history-line {
+  border-left: 2px solid rgba(201, 169, 110, 0.34);
+  padding-left: 10px;
+}
+
+.vn-history-meta {
+  margin-bottom: 3px;
+  color: var(--accent-blue);
+  font-size: 11px;
+}
+
+.vn-history-text {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
 /* 滚动条 */
 ::-webkit-scrollbar {
   width: 4px;
