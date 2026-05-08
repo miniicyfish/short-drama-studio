@@ -66,6 +66,7 @@ function bodyClass(kind: VNLineKind) {
 }
 
 function formatText(kind: VNLineKind, value: string) {
+  if (kind === 'dialogue') return `“${value}”`;
   return value;
 }
 
