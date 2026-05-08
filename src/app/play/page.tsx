@@ -1,9 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
+import VNStage, { VNLineKind } from '@/components/VNStage';
 import {
   actBackgrounds,
   actors,
@@ -51,6 +51,13 @@ function lineTone(signal: ShootLine['riskSignal']) {
   if (signal === 'high') return 'border-accent-gold/45 bg-accent-gold/8';
   if (signal === 'medium') return 'border-accent-blue/30 bg-accent-blue/8';
   return 'border-border bg-bg-card/85';
+}
+
+function vnKindFromLine(type?: ShootLine['type']): VNLineKind {
+  if (type === 'dialogue') return 'dialogue';
+  if (type === 'action' || type === 'director') return 'action';
+  if (type === 'inner') return 'inner';
+  return 'system';
 }
 
 export default function PlayPage() {
@@ -470,258 +477,172 @@ export default function PlayPage() {
     );
   }
 
+  const playCharacters =
+    currentSpeakerPortrait && currentLine?.speaker !== '镜头'
+      ? [
+          {
+            id: currentSpeakerCasting?.scriptRoleId || currentLine?.speaker || 'speaker',
+            name: currentSpeakerCasting?.scriptRoleName || currentLine?.speaker || '角色',
+            image: currentSpeakerPortrait,
+            position: 'right' as const,
+            active: true,
+          },
+        ]
+      : [];
+
   return (
-    <main className="min-h-screen bg-bg-deep text-text-primary">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col">
-        <header className="border-b border-border bg-bg-deep/95 px-4 py-3">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-bold text-accent-gold">{session.project.title}</div>
-              <div className="text-xs text-text-dim">
-                第 {actIndex + 1}/{acts.length || 9} 幕 · {currentAct?.title || '生成中'} · 第{' '}
-                {currentAct ? lineIndex + 1 : 0}/{currentAct?.lines.length || 0} 句
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+    <>
+      <VNStage
+        background={currentBackground}
+        title={currentAct?.title || session.project.title}
+        subtitle={`第 ${actIndex + 1}/${acts.length || 9} 幕 · ${currentAct ? lineIndex + 1 : 0}/${currentAct?.lines.length || 0} 句`}
+        speaker={currentLine?.speaker || '片场'}
+        text={currentLine?.text || (loading ? loading : '正在准备片场。')}
+        kind={vnKindFromLine(currentLine?.type)}
+        characters={playCharacters}
+        controls={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHistoryOpen((current) => !current)}
+              className="border border-border px-3 py-2 text-xs text-text-secondary"
+            >
+              记录
+            </button>
+            <button
+              onClick={() => setAutoMode((current) => !current)}
+              className={`border px-3 py-2 text-xs ${
+                autoMode ? 'border-accent-blue text-accent-blue' : 'border-accent-gold text-accent-gold'
+              }`}
+            >
+              {autoMode ? '自动' : '手动'}
+            </button>
+            {!autoMode && currentLine && (
               <button
-                onClick={() => setAutoMode((current) => !current)}
-                className={`border px-3 py-2 text-xs ${
-                  autoMode
-                    ? 'border-accent-blue bg-accent-blue/10 text-accent-blue'
-                    : 'border-border bg-bg-card text-text-secondary'
-                }`}
+                disabled={Boolean(loading)}
+                onClick={
+                  actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
+                    ? generateEpilogue
+                    : nextLine
+                }
+                className="border border-accent-gold px-3 py-2 text-xs text-accent-gold disabled:opacity-40"
               >
-                {autoMode ? '自动播放' : '手动播放'}
+                {actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
+                  ? '生成样片'
+                  : '下一句'}
               </button>
-              {(Object.keys(stats) as Array<keyof Stats>).map((key) => (
-                <div key={key} className="min-w-16 border border-border bg-bg-card px-2 py-1 text-center">
-                  <div className="text-[10px] text-text-dim">{statLabel(key)}</div>
-                  <div className="text-sm font-bold text-accent-gold">{stats[key]}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="text-xs text-text-dim">
-            本幕可干预：{usedThisAct}/{interventionLimit}。片场每一秒都在烧钱，不能每个问题都掰开揉碎。
-          </div>
-        </header>
-
-        <section className="grid flex-1 md:grid-cols-[1fr_360px]">
-          <div className="relative min-h-[620px] overflow-hidden border-r border-border">
-            <Image src={currentBackground} alt={currentAct?.title || '片场'} fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-b from-bg-deep/30 via-bg-deep/5 to-bg-deep/95" />
-
-            <div className="absolute left-4 right-4 top-4 border border-border bg-bg-deep/80 p-4 backdrop-blur">
-              <div className="mb-2 text-xs text-accent-blue">本幕功能</div>
-              <p className="text-sm leading-7 text-text-secondary">
-                {currentSkeleton?.mustHappen || '正在准备片场。'}
-              </p>
-              {currentSkeleton && (
-                <p className="mt-2 text-xs leading-6 text-accent-red/80">
-                  炸点：{currentSkeleton.bombPoint}
-                </p>
-              )}
-            </div>
-
-            {currentSpeakerPortrait && (
-              <div className="pointer-events-none absolute bottom-24 right-2 hidden h-[460px] w-[300px] md:block lg:right-8 lg:h-[520px] lg:w-[350px]">
-                <Image
-                  src={currentSpeakerPortrait}
-                  alt={currentSpeakerCasting?.scriptRoleName || currentLine?.speaker || '角色'}
-                  fill
-                  className="object-contain object-bottom drop-shadow-2xl"
-                  priority
-                />
-                <div className="absolute bottom-0 left-10 right-10 h-24 bg-gradient-to-t from-bg-deep/80 to-transparent" />
-              </div>
             )}
+            {autoMode && currentLine && actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1 && (
+              <button
+                disabled={Boolean(loading)}
+                onClick={generateEpilogue}
+                className="border border-accent-gold px-3 py-2 text-xs text-accent-gold disabled:opacity-40"
+              >
+                生成样片
+              </button>
+            )}
+          </div>
+        }
+        overlay={
+          <div className="grid gap-4 md:grid-cols-[1fr_320px]">
+            <div className="space-y-3">
+              <div className="max-w-2xl border border-border bg-bg-deep/78 p-4 text-sm leading-7 text-text-secondary backdrop-blur">
+                <div className="mb-1 text-xs text-accent-blue">本幕功能</div>
+                <p>{currentSkeleton?.mustHappen || '正在准备片场。'}</p>
+                {currentSkeleton && <p className="mt-2 text-accent-red/85">炸点：{currentSkeleton.bombPoint}</p>}
+                <p className="mt-2 text-xs text-text-dim">
+                  本幕干预 {usedThisAct}/{interventionLimit} · 片场每一秒都在烧钱
+                </p>
+              </div>
 
-            {historyOpen && (
-              <div className="absolute bottom-44 left-4 right-4 max-h-72 overflow-y-auto border border-border bg-bg-deep/90 p-3 backdrop-blur md:right-auto md:w-[520px]">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-xs text-accent-blue">最近几句</div>
-                  <button onClick={() => setHistoryOpen(false)} className="text-xs text-text-dim">
-                    收起
-                  </button>
+              {historyOpen && (
+                <div className="max-h-64 max-w-2xl overflow-y-auto border border-border bg-bg-deep/86 p-3 backdrop-blur">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-accent-blue">最近几句</div>
+                    <button onClick={() => setHistoryOpen(false)} className="text-xs text-text-dim">
+                      收起
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {historyLines.map((lineItem) => (
+                      <div key={lineItem.lineId} className={`border p-3 ${lineTone(lineItem.riskSignal)}`}>
+                        <div className="mb-1 text-xs text-accent-gold">{lineItem.speaker}</div>
+                        <p className="text-xs leading-6 text-text-secondary">
+                          {lineItem.type === 'dialogue' ? `“${lineItem.text}”` : lineItem.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {historyLines.map((lineItem) => (
-                    <div key={lineItem.lineId} className={`border p-3 ${lineTone(lineItem.riskSignal)}`}>
-                      <div className="mb-1 text-xs text-accent-gold">{lineItem.speaker}</div>
-                      <p className="text-xs leading-6 text-text-secondary">
-                        {lineItem.type === 'dialogue' ? `“${lineItem.text}”` : lineItem.text}
-                      </p>
+              )}
+
+              {currentLine?.innerThought && (
+                <div className="max-w-2xl border border-accent-blue/35 bg-accent-blue/10 p-3 text-xs leading-6 text-accent-blue backdrop-blur">
+                  画外内心：{currentLine.innerThought}
+                </div>
+              )}
+              {loading && <LoadingIndicator text={loading} />}
+              {error && <div className="max-w-2xl border border-accent-red/40 bg-accent-red/10 p-3 text-sm text-accent-red">{error}</div>}
+            </div>
+
+            <div className="space-y-3">
+              <div className="border border-border bg-bg-deep/82 p-4 backdrop-blur">
+                <div className="mb-3 text-sm font-bold text-accent-gold">片场状态</div>
+                <div className="grid grid-cols-4 gap-2 md:grid-cols-2">
+                  {(Object.keys(stats) as Array<keyof Stats>).map((key) => (
+                    <div key={key} className="border border-border bg-bg-card/80 px-2 py-1 text-center">
+                      <div className="text-[10px] text-text-dim">{statLabel(key)}</div>
+                      <div className="text-sm font-bold text-accent-gold">{stats[key]}</div>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
 
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className={`animate-fade-in border p-4 backdrop-blur md:p-5 ${currentLine ? lineTone(currentLine.riskSignal) : 'border-border bg-bg-card/85'}`}>
-                {currentLine ? (
-                  <>
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <div className="text-base font-bold text-accent-gold">{currentLine.speaker}</div>
-                        <div className="text-xs text-text-dim">{currentLine.mood}</div>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-text-dim">
-                        <button
-                          onClick={() => setHistoryOpen((current) => !current)}
-                          className="border border-border bg-bg-deep px-2 py-1 text-text-secondary hover:border-accent-blue"
-                        >
-                          记录
-                        </button>
-                        <span>
-                          {lineIndex + 1}/{currentAct?.lines.length || 0}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="min-h-16 text-base leading-8 text-text-primary md:text-lg">
-                      {currentLine.type === 'dialogue' ? `“${currentLine.text}”` : currentLine.text}
-                    </p>
-                    {currentLine.innerThought && (
-                      <p className="mt-3 border-l border-accent-blue/35 pl-3 text-xs leading-6 text-text-secondary italic">
-                        画外内心：{currentLine.innerThought}
-                      </p>
-                    )}
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-xs text-text-dim">
-                        {autoMode ? '自动播放中。使用工具会暂停。' : '手动播放中。'}
-                      </div>
-                      {!autoMode && (
-                        <button
-                          disabled={Boolean(loading)}
-                          onClick={
-                            actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
-                              ? generateEpilogue
-                              : nextLine
-                          }
-                          className="border border-accent-gold bg-accent-gold/15 px-5 py-2 text-xs text-accent-gold hover:bg-accent-gold/25 disabled:opacity-40 pixel-text"
-                        >
-                          {actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
-                            ? '生成样片'
-                            : '下一句'}
-                        </button>
-                      )}
-                      {autoMode && actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1 && (
-                        <button
-                          disabled={Boolean(loading)}
-                          onClick={generateEpilogue}
-                          className="border border-accent-gold bg-accent-gold/15 px-5 py-2 text-xs text-accent-gold hover:bg-accent-gold/25 disabled:opacity-40 pixel-text"
-                        >
-                          生成样片
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <LoadingIndicator text={loading || '准备拍摄稿'} />
-                )}
-                {loading && currentLine && <LoadingIndicator text={loading} />}
-                {error && (
-                  <div className="mt-3 border border-accent-red/40 bg-accent-red/10 p-3 text-sm text-accent-red">
-                    {error}
-                  </div>
-                )}
+              <div className="border border-border bg-bg-deep/82 p-4 backdrop-blur">
+                <div className="mb-3 text-sm font-bold text-accent-gold">导演工具</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {tools.map((tool) => (
+                    <button
+                      key={tool.id}
+                      disabled={!canIntervene}
+                      onClick={() => {
+                        setAutoMode(false);
+                        if (tool.id === 'rewrite') {
+                          setSelectedText(currentLine?.text || '');
+                          setRewritePrompt('');
+                          setRewriteOpen(true);
+                        } else {
+                          useTool(tool.id);
+                        }
+                      }}
+                      className="border border-border bg-bg-card/80 px-3 py-3 text-left text-sm transition-colors hover:border-accent-gold disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      <div className="mb-1 text-lg">{tool.icon}</div>
+                      <div className="text-accent-gold">{tool.name}</div>
+                      <div className="mt-1 text-xs leading-5 text-text-dim">{tool.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-border bg-bg-deep/82 p-4 backdrop-blur">
+                <div className="mb-3 text-sm font-bold text-accent-gold">片场事实账本</div>
+                <div className="max-h-40 space-y-2 overflow-y-auto text-xs leading-5 text-text-dim">
+                  {canonLedger.length === 0 ? (
+                    <p>还没有事故被写进本局事实。</p>
+                  ) : (
+                    canonLedger.slice(-6).map((entry, index) => (
+                      <p key={`${entry.patchId || entry.actId}-${index}`}>· {entry.memory}</p>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
-
-          <aside className="flex flex-col gap-4 bg-bg-deep p-4">
-            <div className="border border-border bg-bg-card p-4">
-              <div className="mb-3 text-sm font-bold text-accent-gold">本局演员</div>
-              <div className="space-y-3">
-                {session.casting.map((cast) => {
-                  const actor = actors.find((item) => item.id === cast.actorId);
-                  const state = actorStates.find((item) => item.actorId === cast.actorId);
-                  return (
-                    <div key={cast.actorId} className="flex gap-3">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-border">
-                        {actor && <Image src={actor.avatar} alt={actor.name} fill className="object-cover" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm text-text-primary">
-                          {cast.actorName} <span className="text-text-dim">饰</span> {cast.scriptRoleName}
-                        </div>
-                        <div className="text-xs leading-5 text-text-dim">
-                          表面状态：{state?.mood || '等戏'} · 压力 {state?.pressure ?? 0}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="border border-border bg-bg-card p-4">
-              <div className="mb-3 text-sm font-bold text-accent-gold">导演工具</div>
-              <div className="grid grid-cols-2 gap-2">
-                {tools.map((tool) => (
-                  <button
-                    key={tool.id}
-                    disabled={!canIntervene}
-                    onClick={() => {
-                      setAutoMode(false);
-                      if (tool.id === 'rewrite') {
-                        setSelectedText(currentLine?.text || '');
-                        setRewritePrompt('');
-                        setRewriteOpen(true);
-                      } else {
-                        useTool(tool.id);
-                      }
-                    }}
-                    className="border border-border bg-bg-deep px-3 py-3 text-left text-sm transition-colors hover:border-accent-gold disabled:cursor-not-allowed disabled:opacity-35"
-                  >
-                    <div className="mb-1 text-lg">{tool.icon}</div>
-                    <div className="text-accent-gold">{tool.name}</div>
-                    <div className="mt-1 text-xs leading-5 text-text-dim">{tool.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="border border-border bg-bg-card p-4">
-              <div className="mb-3 text-sm font-bold text-accent-gold">播放控制</div>
-              <div className="mb-3 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setAutoMode(true)}
-                  className={`border px-3 py-2 text-sm ${
-                    autoMode ? 'border-accent-blue bg-accent-blue/10 text-accent-blue' : 'border-border text-text-secondary'
-                  }`}
-                >
-                  自动
-                </button>
-                <button
-                  onClick={() => setAutoMode(false)}
-                  className={`border px-3 py-2 text-sm ${
-                    !autoMode ? 'border-accent-gold bg-accent-gold/10 text-accent-gold' : 'border-border text-text-secondary'
-                  }`}
-                >
-                  手动
-                </button>
-              </div>
-              <p className="text-xs leading-6 text-text-dim">
-                默认顺着拍。导演工具会暂停播放，并把当前干预写进后续片场事实。
-              </p>
-            </div>
-
-            <div className="flex-1 border border-border bg-bg-card p-4">
-              <div className="mb-3 text-sm font-bold text-accent-gold">片场事实账本</div>
-              <div className="max-h-56 space-y-2 overflow-y-auto text-xs leading-5 text-text-dim">
-                {canonLedger.length === 0 ? (
-                  <p>还没有事故被写进本局事实。</p>
-                ) : (
-                  canonLedger.slice(-8).map((entry, index) => (
-                    <p key={`${entry.patchId || entry.actId}-${index}`}>· {entry.memory}</p>
-                  ))
-                )}
-              </div>
-            </div>
-          </aside>
-        </section>
-      </div>
+        }
+      >
+        {currentLine?.type === 'action' && <div className="mb-2 text-xs text-accent-gold">镜头动作</div>}
+        {currentLine?.type === 'inner' && <div className="mb-2 text-xs text-accent-blue">人物内心</div>}
+      </VNStage>
 
       {rewriteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-deep/80 px-4 backdrop-blur">
@@ -763,6 +684,6 @@ export default function PlayPage() {
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }
