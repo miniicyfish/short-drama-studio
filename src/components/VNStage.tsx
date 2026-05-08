@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { ReactNode } from 'react';
 
-export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'system';
+export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'system' | 'task';
 
 export interface VNCharacter {
   id: string;
@@ -39,6 +39,7 @@ function kindLabel(kind: VNLineKind) {
     action: '动作',
     inner: '内心',
     system: '提示',
+    task: '任务',
   }[kind];
 }
 
@@ -49,6 +50,7 @@ function frameClass(kind: VNLineKind) {
     action: 'vn-frame vn-frame-action',
     inner: 'vn-frame vn-frame-inner',
     system: 'vn-frame vn-frame-system',
+    task: 'vn-frame vn-frame-task',
   }[kind];
 }
 
@@ -59,6 +61,7 @@ function bodyClass(kind: VNLineKind) {
     action: 'vn-text vn-text-action',
     inner: 'vn-text vn-text-inner',
     system: 'vn-text vn-text-system',
+    task: 'vn-text vn-text-task',
   }[kind];
 }
 
@@ -80,6 +83,19 @@ export default function VNStage({
   overlay,
   controls,
 }: VNStageProps) {
+  const frame = text ? (
+    <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
+      <div className="vn-frame-head">
+        <div className="vn-frame-name">
+          {kind !== 'dialogue' && <span className="vn-frame-kind">{kindLabel(kind)}</span>}
+          <span className="vn-frame-speaker">{speaker || kindLabel(kind)}</span>
+        </div>
+        {controls}
+      </div>
+      <p className={bodyClass(kind)}>{formatText(kind, text)}</p>
+    </div>
+  ) : null;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg-deep text-text-primary">
       <Image
@@ -121,21 +137,14 @@ export default function VNStage({
 
       {overlay && <div className="absolute inset-x-4 top-20 z-10 md:inset-x-8 md:top-24">{overlay}</div>}
 
+      {kind === 'task' && frame && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center p-4">{frame}</div>
+      )}
+
       <div className="absolute inset-x-0 bottom-0 z-10 p-4 md:p-6">
         <div className="mx-auto max-w-5xl">
           {children}
-          {text && (
-            <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
-              <div className="vn-frame-head">
-                <div className="vn-frame-name">
-                  <span className="vn-frame-kind">{kindLabel(kind)}</span>
-                  <span className="vn-frame-speaker">{speaker || kindLabel(kind)}</span>
-                </div>
-                {controls}
-              </div>
-              <p className={bodyClass(kind)}>{formatText(kind, text)}</p>
-            </div>
-          )}
+          {kind !== 'task' && frame}
         </div>
       </div>
     </main>

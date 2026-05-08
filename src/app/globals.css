@@ -96,11 +96,8 @@ body {
 .vn-frame {
   position: relative;
   overflow: hidden;
-  min-height: 150px;
-  box-shadow:
-    0 22px 70px rgba(0, 0, 0, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  padding: 18px 20px 20px;
+  min-height: 132px;
+  padding: 16px 20px 18px;
   backdrop-filter: blur(10px);
 }
 
@@ -114,7 +111,7 @@ body {
 .vn-frame-head {
   position: relative;
   z-index: 1;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -146,34 +143,44 @@ body {
 .vn-text {
   position: relative;
   z-index: 1;
-  max-width: 46em;
-  min-height: 72px;
+  max-width: 42em;
+  min-height: 58px;
+  white-space: pre-line;
   font-size: 20px;
-  line-height: 1.78;
+  line-height: 1.72;
 }
 
 .vn-frame-dialogue {
-  border: 1px solid rgba(201, 169, 110, 0.42);
-  border-left: 6px solid rgba(201, 169, 110, 0.95);
+  width: min(820px, 92vw);
+  min-height: 122px;
+  margin-inline: auto;
+  border-top: 1px solid rgba(201, 169, 110, 0.5);
+  border-bottom: 1px solid rgba(201, 169, 110, 0.42);
   background:
-    linear-gradient(180deg, rgba(26, 35, 50, 0.94), rgba(10, 14, 20, 0.95)),
-    radial-gradient(circle at 14% 0%, rgba(201, 169, 110, 0.16), transparent 34%);
+    linear-gradient(90deg, transparent, rgba(10, 14, 20, 0.88) 14%, rgba(10, 14, 20, 0.9) 86%, transparent),
+    radial-gradient(ellipse at 50% 100%, rgba(201, 169, 110, 0.16), transparent 58%);
+  box-shadow: 0 24px 74px rgba(0, 0, 0, 0.45);
 }
 
 .vn-frame-dialogue::before {
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  inset: auto 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(201, 169, 110, 0.85), transparent);
 }
 
-.vn-frame-dialogue .vn-frame-kind,
 .vn-text-dialogue {
-  color: var(--accent-gold);
+  color: rgba(245, 232, 202, 0.96);
 }
 
 .vn-frame-dialogue .vn-frame-speaker {
   color: #f1d492;
+  font-size: 17px;
 }
 
 .vn-frame-narration {
+  width: min(840px, 92vw);
+  min-height: 110px;
+  margin-inline: auto;
   border-top: 2px solid rgba(255, 255, 255, 0.38);
   border-bottom: 2px solid rgba(255, 255, 255, 0.32);
   background:
@@ -197,10 +204,15 @@ body {
 }
 
 .vn-frame-action {
+  width: min(800px, 92vw);
+  min-height: 112px;
+  margin-inline: auto;
   border: 1px solid rgba(201, 169, 110, 0.24);
+  border-left: 5px solid rgba(201, 169, 110, 0.78);
   background:
     linear-gradient(135deg, rgba(57, 39, 21, 0.88), rgba(10, 14, 20, 0.93)),
     repeating-linear-gradient(-45deg, rgba(201, 169, 110, 0.05) 0 1px, transparent 1px 10px);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.42);
 }
 
 .vn-frame-action::before {
@@ -260,6 +272,55 @@ body {
 .vn-frame-system .vn-frame-kind,
 .vn-text-system {
   color: var(--text-secondary);
+}
+
+.vn-frame-task {
+  width: min(620px, 92vw);
+  min-height: 250px;
+  margin: 0 auto 22px;
+  border: 1px solid rgba(201, 169, 110, 0.58);
+  background:
+    linear-gradient(180deg, rgba(22, 18, 13, 0.96), rgba(10, 14, 20, 0.96)),
+    radial-gradient(circle at 50% 0%, rgba(201, 169, 110, 0.24), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 8px);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.56),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 26px;
+}
+
+.vn-frame-task::before {
+  inset: 12px;
+  border: 1px solid rgba(201, 169, 110, 0.2);
+}
+
+.vn-frame-task .vn-frame-head {
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.vn-frame-task .vn-frame-name {
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+
+.vn-frame-task .vn-frame-kind {
+  color: rgba(201, 169, 110, 0.88);
+}
+
+.vn-frame-task .vn-frame-speaker {
+  color: #f1d492;
+  font-size: 22px;
+}
+
+.vn-text-task {
+  max-width: none;
+  min-height: auto;
+  color: rgba(245, 232, 202, 0.95);
+  font-size: 18px;
+  line-height: 1.9;
+  text-align: center;
 }
 
 .vn-playback-controls {

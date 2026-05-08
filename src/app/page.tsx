@@ -6,9 +6,18 @@ import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNCharacter, VNLineKind } from '@/components/VNStage';
 import { actors, assignCasting, initialStats, project } from '@/lib/gameData';
-import { GameSession, RecruitResult } from '@/lib/gameTypes';
+import { Actor, GameSession, RecruitResult } from '@/lib/gameTypes';
 
-type Stage = 'intro' | 'casting' | 'persuasion-input' | 'persuasion-playback' | 'pre-shoot';
+type Stage =
+  | 'intro'
+  | 'casting-task'
+  | 'casting'
+  | 'persuasion-transition'
+  | 'persuasion-task'
+  | 'persuasion-input'
+  | 'persuasion-playback'
+  | 'pre-shoot-task'
+  | 'pre-shoot';
 
 interface VNLine {
   id: string;
@@ -552,6 +561,61 @@ const rawIntroLines: VNLine[] = [
 
 const introLines = splitVNLines(rawIntroLines);
 
+function actorCharacter(actor?: Actor | null): VNCharacter[] {
+  if (!actor) return [];
+  return [
+    {
+      id: actor.id,
+      name: actor.name,
+      image: actor.avatar,
+      position: 'right',
+      active: true,
+    },
+  ];
+}
+
+function actorMeetLines(actor: Actor): VNLine[] {
+  const target = {
+    'sun-manli': ['美甲店门口', '老赵把你带到小区美甲店门口。玻璃门上贴着“今日爆款：富贵千金甲”。', '老板娘正在给客人讲前男友的八卦，听到“豪门离婚”四个字，剪刀停在半空。'],
+    'wang-nana': ['美甲店后间', '王娜娜坐在补光灯前试口红，手机支架比人还稳。', '老赵说她今天本来要拍变装，听说有镜头，立刻把假睫毛贴得像要出征。'],
+    'zhang-jiahao': ['夜场后门', '老赵带你绕到夜场后门，张嘉豪刚从一场生日局下来，衬衫领口还亮着银粉。', '他听见“顾总”两个字，第一反应是问要不要自备香水。'],
+    'qiu-peng': ['城中村楼下', '邱鹏拎着一袋打折面包站在楼下，朋友圈刚发完“人生不会一直低谷”。', '老赵小声说，别刺激他，他最近把每个机会都当成命运重新开机。'],
+    'guo-gang': ['写字楼门岗', '夜班门岗灯光惨白，郭港坐在监控屏前，像一个被迫守护豪门秘密的男人。', '老赵说他只要不说话就很贵，一说话就容易回到物业频道。'],
+    'lin-xiaoman': ['排练室外廊', '林小满站在旧排练室外，帽檐压得很低，像随时准备从镜头里退出去。', '老赵说她懂镜头，但你最好别让她觉得这又是一次被人拿去截图的热闹。'],
+  }[actor.id] || ['临时见面点', `老赵把你带去见${actor.name}。`, '这人能来，但为什么能来，老赵也说不太清。'];
+
+  return splitVNLines([
+    {
+      id: `${actor.id}-meet-01`,
+      background: '/pixels/scene-gu-side-corridor.png',
+      title: target[0],
+      subtitle: '逐个说服入组',
+      kind: 'action',
+      text: target[1],
+      characters: [zhaoCharacter],
+    },
+    {
+      id: `${actor.id}-meet-02`,
+      background: '/pixels/scene-gu-side-corridor.png',
+      title: target[0],
+      subtitle: '逐个说服入组',
+      kind: 'action',
+      text: target[2],
+      characters: actorCharacter(actor),
+    },
+    {
+      id: `${actor.id}-meet-03`,
+      background: '/pixels/scene-gu-side-corridor.png',
+      title: target[0],
+      subtitle: '逐个说服入组',
+      kind: 'dialogue',
+      speaker: '老赵',
+      text: '就一句，别讲太满。讲太满的人，最后都要加钱。',
+      characters: [zhaoCharacter],
+    },
+  ]);
+}
+
 const shootRules = [
   '豪宅只租半天。超一分钟，房东就会从“艺术支持者”变成“按小时收费者”。',
   '群演是临时叫来的，站久了要补钱；站太久，还会开始问自己到底是不是顾家亲戚。',
@@ -564,6 +628,8 @@ export default function Home() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>('intro');
   const [introIndex, setIntroIndex] = useState(0);
+  const [persuasionSceneIndex, setPersuasionSceneIndex] = useState(0);
+  const [activePersuasionActorIndex, setActivePersuasionActorIndex] = useState(0);
   const [persuasionLineIndex, setPersuasionLineIndex] = useState(0);
   const [selectedActorIds, setSelectedActorIds] = useState<string[]>([]);
   const [words, setWords] = useState<Record<string, string>>({});
@@ -579,42 +645,39 @@ export default function Home() {
   const casting = useMemo(() => assignCasting(selectedActors), [selectedActors]);
 
   const currentIntro = introLines[introIndex];
+  const activeActor = selectedActors[activePersuasionActorIndex];
+  const persuasionSceneLines = useMemo(
+    () => (activeActor ? actorMeetLines(activeActor) : []),
+    [activeActor]
+  );
+  const currentPersuasionSceneLine = persuasionSceneLines[persuasionSceneIndex];
   const persuasionLines = useMemo(() => {
-    return recruitResults.flatMap((result) => {
-      const actor = actors.find((item) => item.id === result.actorId);
-      const actorCharacter: VNCharacter | null = actor
-        ? {
-            id: actor.id,
-            name: actor.name,
-            image: actor.avatar,
-            position: 'right',
-            active: true,
-          }
-        : null;
+    if (!activeActor) return [];
+    const result = recruitResults.find((item) => item.actorId === activeActor.id);
+    if (!result) return [];
       return splitVNLines([
         ...(result.visibleConversation || []).map((line, index): VNLine => ({
           id: `${result.actorId}-${index}`,
           background: '/pixels/scene-gu-side-corridor.png',
           title: '逐个说服入组',
-          subtitle: actor?.name || '演员',
+          subtitle: activeActor.name,
           kind: 'dialogue',
-          speaker: line.speaker === '演员' ? actor?.name || '演员' : line.speaker,
+          speaker: line.speaker === '演员' ? activeActor.name : line.speaker,
           text: line.text,
-          characters: line.speaker === '老赵' ? [zhaoCharacter] : actorCharacter ? [actorCharacter] : [],
+          characters: line.speaker === '老赵' ? [zhaoCharacter] : actorCharacter(activeActor),
         })),
         {
           id: `${result.actorId}-hint`,
           background: '/pixels/scene-gu-side-corridor.png',
           title: '逐个说服入组',
-          subtitle: actor?.name || '演员',
+          subtitle: activeActor.name,
           kind: 'system' as VNLineKind,
           speaker: '系统',
           text: result.visibleHint || '你不知道他真正怎么理解了这句话，但会影响后续拍摄。',
-          characters: actorCharacter ? [actorCharacter] : [],
+          characters: actorCharacter(activeActor),
         },
       ]);
-    });
-  }, [recruitResults]);
+  }, [activeActor, recruitResults]);
   const currentPersuasionLine = persuasionLines[persuasionLineIndex];
 
   const toggleActor = (actorId: string) => {
@@ -630,10 +693,11 @@ export default function Home() {
       setIntroIndex((current) => current + 1);
       return;
     }
-    setStage('casting');
+    setStage('casting-task');
   };
 
   const recruit = async () => {
+    if (!activeActor) return;
     setLoading(true);
     setError(null);
     try {
@@ -642,15 +706,20 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project,
-          selectedActors: selectedActors.map((actor) => ({
-            ...actor,
-            playerWord: words[actor.id] || actor.defaultWord,
-          })),
+          selectedActors: [
+            {
+              ...activeActor,
+              playerWord: words[activeActor.id] || activeActor.defaultWord,
+            },
+          ],
         }),
       });
       if (!res.ok) throw new Error('说服失败');
       const data = (await res.json()) as { recruitResults: RecruitResult[] };
-      setRecruitResults(data.recruitResults);
+      setRecruitResults((current) => [
+        ...current.filter((result) => result.actorId !== activeActor.id),
+        ...data.recruitResults,
+      ]);
       setPersuasionLineIndex(0);
       setStage('persuasion-playback');
     } catch (err) {
@@ -665,7 +734,22 @@ export default function Home() {
       setPersuasionLineIndex((current) => current + 1);
       return;
     }
-    setStage('pre-shoot');
+    if (activePersuasionActorIndex < selectedActors.length - 1) {
+      setActivePersuasionActorIndex((current) => current + 1);
+      setPersuasionSceneIndex(0);
+      setPersuasionLineIndex(0);
+      setStage('persuasion-transition');
+      return;
+    }
+    setStage('pre-shoot-task');
+  };
+
+  const nextPersuasionSceneLine = () => {
+    if (persuasionSceneIndex < persuasionSceneLines.length - 1) {
+      setPersuasionSceneIndex((current) => current + 1);
+      return;
+    }
+    setStage('persuasion-task');
   };
 
   useEffect(() => {
@@ -674,11 +758,24 @@ export default function Home() {
       const timer = window.setTimeout(nextIntro, autoDelayFor(currentIntro.text));
       return () => window.clearTimeout(timer);
     }
+    if (stage === 'persuasion-transition' && currentPersuasionSceneLine) {
+      const timer = window.setTimeout(nextPersuasionSceneLine, autoDelayFor(currentPersuasionSceneLine.text));
+      return () => window.clearTimeout(timer);
+    }
     if (stage === 'persuasion-playback' && currentPersuasionLine) {
       const timer = window.setTimeout(nextPersuasionLine, autoDelayFor(currentPersuasionLine.text));
       return () => window.clearTimeout(timer);
     }
-  }, [autoPlay, currentIntro, currentPersuasionLine, introIndex, persuasionLineIndex, stage]);
+  }, [
+    autoPlay,
+    currentIntro,
+    currentPersuasionLine,
+    currentPersuasionSceneLine,
+    introIndex,
+    persuasionLineIndex,
+    persuasionSceneIndex,
+    stage,
+  ]);
 
   const playbackControls = (onNext: () => void, isLast: boolean, lastLabel: string) => (
     <div className="vn-playback-controls">
@@ -724,6 +821,25 @@ export default function Home() {
     );
   }
 
+  if (stage === 'casting-task') {
+    return (
+      <VNStage
+        background="/pixels/scene-gu-side-corridor.png"
+        title="片场任务"
+        subtitle="开拍前"
+        kind="task"
+        speaker="任务 01｜从素人池里捞 4 个人"
+        text={'目标：选出今天能到、能撑住豪门疯戏的班底。\n限制：只能选 4 个。盒饭和预算不够全上。'}
+        characters={[zhaoCharacter]}
+        controls={
+          <button onClick={() => setStage('casting')} className="vn-control-button">
+            开始捞人
+          </button>
+        }
+      />
+    );
+  }
+
   if (stage === 'casting') {
     return (
       <VNStage
@@ -737,7 +853,13 @@ export default function Home() {
         controls={
           <button
             disabled={selectedActorIds.length !== 4}
-            onClick={() => setStage('persuasion-input')}
+            onClick={() => {
+              setActivePersuasionActorIndex(0);
+              setPersuasionSceneIndex(0);
+              setPersuasionLineIndex(0);
+              setAutoPlay(true);
+              setStage('persuasion-transition');
+            }}
             className="border border-accent-gold px-4 py-2 text-xs text-accent-gold disabled:opacity-35"
           >
             确认班底
@@ -775,50 +897,86 @@ export default function Home() {
     );
   }
 
-  if (stage === 'persuasion-input') {
+  if (stage === 'persuasion-transition' && currentPersuasionSceneLine) {
+    return (
+      <VNStage
+        background={currentPersuasionSceneLine.background}
+        title={currentPersuasionSceneLine.title}
+        subtitle={currentPersuasionSceneLine.subtitle}
+        speaker={currentPersuasionSceneLine.speaker}
+        text={currentPersuasionSceneLine.text}
+        kind={currentPersuasionSceneLine.kind}
+        characters={currentPersuasionSceneLine.characters}
+        controls={playbackControls(
+          nextPersuasionSceneLine,
+          persuasionSceneIndex >= persuasionSceneLines.length - 1,
+          '开始说服'
+        )}
+      />
+    );
+  }
+
+  if (stage === 'persuasion-task' && activeActor) {
+    return (
+      <VNStage
+        background="/pixels/scene-gu-side-corridor.png"
+        title="片场任务"
+        subtitle="逐个说服入组"
+        kind="task"
+        speaker={`任务 02｜说服 ${activeActor.name}`}
+        text={`目标：用一句话把${activeActor.name}拉进组。\n方式：只填一个词，让说辞击中他/她最在意的地方。\n风险：你看不到真实心态，但它会写进后续拍摄。`}
+        characters={actorCharacter(activeActor)}
+        controls={
+          <button onClick={() => setStage('persuasion-input')} className="vn-control-button">
+            去说服
+          </button>
+        }
+      />
+    );
+  }
+
+  if (stage === 'persuasion-input' && activeActor) {
     return (
       <VNStage
         background="/pixels/scene-gu-side-corridor.png"
         title="逐个说服入组"
-        subtitle="填一个词，说出口"
-        speaker="老赵"
-        text="你就一句话，说到那个点，他就来；说歪了，开机会更歪。"
+        subtitle={activeActor.name}
+        speaker="你"
+        text="你把话压短。这个年代，没人会为了一个太完整的梦想停下脚步。"
         kind="dialogue"
-        characters={[zhaoCharacter]}
+        characters={actorCharacter(activeActor)}
         controls={
           <button onClick={recruit} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
             {loading ? '说服中' : '说出口'}
           </button>
         }
         overlay={
-          <div className="mx-auto max-h-[58vh] max-w-4xl space-y-3 overflow-y-auto">
-            {selectedActors.map((actor) => (
-              <div key={actor.id} className="border border-border bg-bg-deep/86 p-4 backdrop-blur">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="relative h-12 w-12 overflow-hidden border border-border">
-                    <Image src={actor.avatar} alt={actor.name} fill sizes="48px" className="object-cover" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-accent-gold">{actor.name}</div>
-                    <div className="text-xs text-text-dim">{actor.label}</div>
-                  </div>
+          <div className="mx-auto max-w-3xl">
+            <div className="border border-accent-gold/35 bg-bg-deep/88 p-5 backdrop-blur">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="relative h-14 w-14 overflow-hidden border border-border">
+                  <Image src={activeActor.avatar} alt={activeActor.name} fill sizes="56px" className="object-cover" />
                 </div>
-                <div className="text-sm leading-7 text-text-secondary">
-                  {actor.persuasionTemplate.split('____')[0]}
-                  <input
-                    value={words[actor.id] ?? actor.defaultWord}
-                    onChange={(event) =>
-                      setWords((current) => ({
-                        ...current,
-                        [actor.id]: event.target.value,
-                      }))
-                    }
-                    className="mx-2 w-28 border-b border-accent-gold bg-transparent px-2 py-1 text-center text-accent-gold outline-none"
-                  />
-                  {actor.persuasionTemplate.split('____')[1]}
+                <div>
+                  <div className="font-bold text-accent-gold">{activeActor.name}</div>
+                  <div className="text-xs text-accent-blue">{activeActor.label}</div>
                 </div>
               </div>
-            ))}
+              <div className="text-base leading-8 text-text-secondary">
+                {activeActor.persuasionTemplate.split('____')[0]}
+                <input
+                  value={words[activeActor.id] ?? activeActor.defaultWord}
+                  onChange={(event) =>
+                    setWords((current) => ({
+                      ...current,
+                      [activeActor.id]: event.target.value,
+                    }))
+                  }
+                  className="mx-2 w-32 border-b border-accent-gold bg-transparent px-2 py-1 text-center text-xl text-accent-gold outline-none"
+                />
+                {activeActor.persuasionTemplate.split('____')[1]}
+              </div>
+            </div>
             {loading && <LoadingIndicator text="逐个说服入组" />}
             {error && <div className="border border-accent-red/40 bg-accent-red/10 p-3 text-sm text-accent-red">{error}</div>}
           </div>
@@ -838,6 +996,25 @@ export default function Home() {
         kind={currentPersuasionLine.kind}
         characters={currentPersuasionLine.characters}
         controls={playbackControls(nextPersuasionLine, persuasionLineIndex >= persuasionLines.length - 1, '去片场')}
+      />
+    );
+  }
+
+  if (stage === 'pre-shoot-task') {
+    return (
+      <VNStage
+        background="/pixels/scene-gu-banquet-corridor.png"
+        title="片场任务"
+        subtitle="开机前"
+        kind="task"
+        speaker="任务 03｜记住片场限制"
+        text={'目标：在真正拍摄前理解工具限制。\n规则：每幕只能干预 1-2 次，任何工具都会消耗次数。\n原因：钱、人、场地、面子都撑不住你每句都管。'}
+        characters={[zhaoCharacter]}
+        controls={
+          <button onClick={() => setStage('pre-shoot')} className="vn-control-button">
+            听老赵算账
+          </button>
+        }
       />
     );
   }
