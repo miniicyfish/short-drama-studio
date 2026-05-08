@@ -97,9 +97,10 @@ export default function VNStage({
     speaker ||
     (kind === 'task' ? kindLabel(kind) : undefined);
   const displayKind = kind === 'inner' || kind === 'narration' ? kindLabel(kind) : undefined;
-  const showHeader = Boolean(displaySpeaker || displayKind || controls);
+  const showHeader = Boolean(displaySpeaker || displayKind);
   const frame = text ? (
     <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
+      {controls && <div className="vn-frame-controls">{controls}</div>}
       {showHeader && (
         <div className="vn-frame-head">
           {(displaySpeaker || displayKind) && (
@@ -108,7 +109,6 @@ export default function VNStage({
               {displaySpeaker && <span className="vn-frame-speaker">{displaySpeaker}</span>}
             </div>
           )}
-          {controls}
         </div>
       )}
       <p className={bodyClass(kind)}>{formatText(kind, text)}</p>

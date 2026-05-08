@@ -111,11 +111,22 @@ body {
 .vn-frame-head {
   position: relative;
   z-index: 1;
+  min-height: 34px;
+  padding-right: 176px;
   margin-bottom: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.vn-frame-controls {
+  position: absolute;
+  right: 20px;
+  top: 16px;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .vn-frame-name {
@@ -297,7 +308,13 @@ body {
 
 .vn-frame-task .vn-frame-head {
   justify-content: center;
+  padding-right: 0;
   margin-bottom: 18px;
+}
+
+.vn-frame-task .vn-frame-controls {
+  right: 26px;
+  top: 26px;
 }
 
 .vn-frame-task .vn-frame-name {
@@ -507,6 +524,27 @@ body {
 
   .play-sidebar {
     max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .vn-frame {
+    padding: 14px 14px 16px;
+  }
+
+  .vn-frame-head {
+    padding-right: 0;
+    margin-bottom: 46px;
+  }
+
+  .vn-frame-controls {
+    right: 14px;
+    top: 14px;
+  }
+
+  .vn-frame-task .vn-frame-controls {
+    right: 18px;
+    top: 18px;
   }
 }
 
