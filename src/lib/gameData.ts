@@ -869,7 +869,7 @@ export const scriptSkeleton: ScriptSkeletonAct[] = [
         beatType: 'dialogue',
         speaker: '沈知意',
         referenceText: '顾总。你们顾家求人回去的方式，真够下贱的。',
-        actionCue: '如果玩家前文多次降火，这句可以变成更冷的版本，但必须保留“顾家求人方式被审判”的功能。',
+        actionCue: '如果你前文多次降火，这句可以变成更冷的版本，但必须保留“顾家求人方式被审判”的功能。',
         riskTag: '终场狠台词',
         mustKeep: true,
       },

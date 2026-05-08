@@ -9,7 +9,7 @@ import {
 const WORLD_BRIEF = `
 你是《我的短剧超失控》的 AI 片场引擎。
 
-游戏不是 AI 剧本生成器，而是低成本短剧片场模拟器。玩家已经有固定剧本骨架；你的职责是让素人演员根据现实身份、入组心态、片场状态和玩家干预，把这条样片拍歪、拍炸、或者勉强救回来。
+游戏不是 AI 剧本生成器，而是低成本短剧片场模拟器。你已经有固定剧本骨架；你的职责是让素人演员根据现实身份、入组心态、片场状态和你的干预，把这条样片拍歪、拍炸、或者勉强救回来。
 
 当前样片是《离婚夜，顾总当众强吻我后，白月光也疯了》。
 核心气质：低配豪门、体面崩塌、公开发病、旧情未死、女主清醒。
@@ -26,14 +26,15 @@ const WORLD_BRIEF = `
 export function buildRecruitPrompt(input: RecruitRequest) {
   const system = `${WORLD_BRIEF}
 
-你现在负责“捞人/说服”阶段。根据每个素人的现实身份、邪门价值、不受控点、说服模板和玩家填入的词，生成玩家可见的说服对话，以及玩家不可见的入组心态。
+你现在负责“捞人/说服”阶段。根据每个素人的现实身份、邪门价值、不受控点、说服模板和你填入的词，生成你可见的说服对话，以及你不可见的入组心态。
 
 入组心态不是好感度，而是演员对“来这个片场拍短剧”这件事的理解。这个理解会影响后续所有拍摄行为。
 
 注意：
-1. visibleConversation 是玩家看得到的表面说服过程。
+1. visibleConversation 是你看得到的表面说服过程。
 2. innerThought 和 mindset 是隐藏信息，不能在 visibleConversation 里明说。
-3. 老赵可以做一句草台旁白，但不要替玩家解释系统规则。`;
+3. 老赵可以做一句草台旁白，但不要替你解释系统规则。
+4. visibleConversation 的 speaker 使用“你”“演员”“老赵”，不要使用“玩家”。`;
 
   const user = `请为以下演员生成入组结果。
 
@@ -44,16 +45,16 @@ ${JSON.stringify(input, null, 2)}
   "recruitResults": [
     {
       "actorId": "演员ID",
-      "persuasionLine": "玩家说出口的完整说辞，1句",
+      "persuasionLine": "你说出口的完整说辞，1句",
       "actorReply": "演员表面回应，1-2句",
       "visibleConversation": [
-        {"speaker": "玩家", "text": "玩家完整说辞"},
+        {"speaker": "你", "text": "你说出口的完整说辞"},
         {"speaker": "演员", "text": "演员表面回应"},
         {"speaker": "老赵", "text": "老赵从草台片场角度补一句"}
       ],
       "accepted": true,
-      "visibleHint": "给玩家看的提示：你不知道他真正怎么理解了这句话，但会影响后续拍摄。",
-      "innerThought": "演员真实内心OS，隐藏，不给玩家直接展示",
+      "visibleHint": "给你看的提示：你不知道他真正怎么理解了这句话，但会影响后续拍摄。",
+      "innerThought": "演员真实内心OS，隐藏，不给你直接展示",
       "mindset": {
         "description": "入组心态一句话",
         "behaviorBias": "拍戏时的行为偏向",
@@ -75,7 +76,7 @@ ${JSON.stringify(input, null, 2)}
 export function buildDraftPrompt(input: DraftRequest) {
   const system = `${WORLD_BRIEF}
 
-你现在负责生成“第一集 9 幕初始拍摄稿”。这是本局默认版本：如果玩家不干预，就会按这些 lines 一句句滚动播放。
+你现在负责生成“第一集 9 幕初始拍摄稿”。这是本局默认版本：如果你不干预，就会按这些 lines 一句句滚动播放。
 
 要求：
 1. 每幕必须严格参考 scriptSkeletonAct.beats 生成，不能只复述 mustHappen。
@@ -84,7 +85,7 @@ export function buildDraftPrompt(input: DraftRequest) {
 4. 输出要混合镜头动作、台词、内心 OS、导演可见事故点，不要把多个动作和台词压成一句摘要。
 5. 每行都要有 lineId，格式如 act_01_l01；尽量填写 sourceBeatId，对应来源 beat。
 6. beat.mustKeep 为 true 的功能必须被保留，但具体台词/动作可以受演员入组心态轻微变形。
-7. 每幕都要有 defaultOutcome：玩家不干预时，本幕写入片场事实账本的结果。
+7. 每幕都要有 defaultOutcome：你不干预时，本幕写入片场事实账本的结果。
 8. 不要一次性把结局讲完，每幕只完成自己的功能。
 9. 要让演员的入组心态已经开始轻微影响表演，但不要解释成设定说明。`;
 
@@ -104,7 +105,7 @@ ${JSON.stringify(input, null, 2)}
           "sourceBeatId": "act_01_b01",
           "type": "action/dialogue/inner/director",
           "speaker": "说话人或镜头",
-          "text": "玩家逐句看到的文本",
+          "text": "你逐句看到的文本",
           "innerThought": "角色内心OS或null",
           "mood": "情绪标签",
           "riskSignal": "low/medium/high/critical"
@@ -125,7 +126,7 @@ ${JSON.stringify(input, null, 2)}
 export function buildInterventionPrompt(input: InterventionRequest) {
   const system = `${WORLD_BRIEF}
 
-你现在负责处理玩家在某一句/某个画面上的工具干预。
+你现在负责处理“你”在某一句/某个画面上的工具干预。
 
 关键原则：
 1. 工具影响当前点之后的本局拍摄事实，并写入 globalPatch，影响剩余所有幕。
@@ -137,14 +138,14 @@ export function buildInterventionPrompt(input: InterventionRequest) {
 7. 如果当前工具改变了关键动作或关键台词，futureDirectives 必须说明后续 beat 如何同步变形。
 8. statDelta 数值要克制，单项通常在 -20 到 +20 之间。`;
 
-  const user = `玩家在当前句使用工具，请返回当前幕补丁和全局片场事实补丁。
+  const user = `你在当前句使用工具，请返回当前幕补丁和全局片场事实补丁。
 
 ${JSON.stringify(input, null, 2)}
 
 返回格式：
 {
   "immediate": {
-    "visibleEffect": "玩家立即看到的工具效果",
+    "visibleEffect": "你立即看到的工具效果",
     "replacementCurrentLine": {
       "lineId": "当前lineId或新lineId",
       "type": "action/dialogue/inner/director",
@@ -222,7 +223,7 @@ ${JSON.stringify(input, null, 2)}
         "sourceBeatId": "act_xx_b01",
         "type": "action/dialogue/inner/director",
         "speaker": "说话人或镜头",
-        "text": "玩家逐句看到的文本",
+        "text": "你逐句看到的文本",
         "innerThought": "内心OS或null",
         "mood": "情绪标签",
         "riskSignal": "low/medium/high/critical"

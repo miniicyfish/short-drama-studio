@@ -85,7 +85,7 @@ export default function VNStage({
         {characters.map((character) => (
           <div
             key={character.id}
-            className={`absolute bottom-0 h-[58vh] w-[38vw] max-w-[360px] transition-all duration-300 ${
+            className={`standee-shell absolute bottom-0 h-[68vh] w-[34vw] max-w-[320px] transition-all duration-300 ${
               positionClass[character.position || 'center']
             } ${character.active === false ? 'opacity-55 saturate-50' : 'opacity-100'}`}
           >
@@ -94,7 +94,7 @@ export default function VNStage({
               alt={character.name}
               fill
               sizes="(min-width: 768px) 360px, 48vw"
-              className="character-standee object-contain object-bottom drop-shadow-2xl"
+              className="character-standee object-cover object-top drop-shadow-2xl"
             />
           </div>
         ))}

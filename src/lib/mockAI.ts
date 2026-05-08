@@ -33,7 +33,7 @@ export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitRes
         persuasionLine,
         actorReply,
         visibleConversation: [
-          { speaker: '玩家', text: persuasionLine },
+          { speaker: '你', text: persuasionLine },
           { speaker: '演员', text: actorReply },
           {
             speaker: '老赵',

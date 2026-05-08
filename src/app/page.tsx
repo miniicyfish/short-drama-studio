@@ -53,7 +53,7 @@ const introLines: VNLine[] = [
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'inner',
-    speaker: '玩家',
+    speaker: '你',
     text: '原来这些曾经被嫌土、嫌短、嫌没门槛的东西，最后真的站上了主桌。',
   },
   {
@@ -70,7 +70,7 @@ const introLines: VNLine[] = [
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'inner',
-    speaker: '玩家',
+    speaker: '你',
     text: '我回来了？短剧还没起飞，平台还没押注，投流还没烧起来。',
   },
   {
@@ -79,27 +79,46 @@ const introLines: VNLine[] = [
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'inner',
-    speaker: '玩家',
+    speaker: '你',
     text: '如果我知道风口会来，那我现在要做的事就只有一件：先拍出第一条。',
+  },
+  {
+    id: 'zhao-00',
+    background: '/pixels/scene-gu-side-corridor.png',
+    title: '老赵登场',
+    subtitle: '被你拉来的草台搭子',
+    kind: 'action',
+    text: '你把老赵从一个群演饭局里拽出来，摊开纸，说自己要拍一条竖屏小短剧。',
+    characters: [zhaoCharacter],
   },
   {
     id: 'zhao-01',
     background: '/pixels/scene-gu-side-corridor.png',
     title: '老赵登场',
-    subtitle: '草台搭子',
+    subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
     speaker: '老赵',
-    text: '专业演员？别想了。现在没人信短剧，信的人你也请不起。',
+    text: '你说拍竖屏小短剧？这玩意儿有人看吗？',
     characters: [zhaoCharacter],
   },
   {
     id: 'zhao-02',
     background: '/pixels/scene-gu-side-corridor.png',
     title: '老赵登场',
-    subtitle: '草台搭子',
+    subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
     speaker: '老赵',
-    text: '我能摸到的人都在夜场、美甲店、写字楼门岗和失业同学群里。要抢风口，就从神人里捞。',
+    text: '别跟我讲什么未来风口，我只认今天账上有多少钱。你要真拍，我只能给你找便宜人。',
+    characters: [zhaoCharacter],
+  },
+  {
+    id: 'zhao-03',
+    background: '/pixels/scene-gu-side-corridor.png',
+    title: '老赵登场',
+    subtitle: '被你拉来的草台搭子',
+    kind: 'dialogue',
+    speaker: '老赵',
+    text: '夜场、美甲店、写字楼门岗、失业同学群……能来的都不一定会演，但至少今天能到。',
     characters: [zhaoCharacter],
   },
   {
@@ -107,9 +126,19 @@ const introLines: VNLine[] = [
     background: project.cover,
     title: project.title,
     subtitle: '第一条样片',
+    kind: 'inner',
+    speaker: '你',
+    text: '你不能告诉老赵十年后的答案，只能把未来会爆的东西，包装成一条现在能拍得起的样片。',
+    characters: [zhaoCharacter],
+  },
+  {
+    id: 'project-02',
+    background: project.cover,
+    title: project.title,
+    subtitle: '第一条样片',
     kind: 'dialogue',
     speaker: '老赵',
-    text: '豪门、强吻、下跪、全员发疯。土是土，但这个年代没人知道观众以后就爱看这个。',
+    text: '豪门、强吻、下跪、全员发疯。这个本子够集中，够便宜，吵起来也像有钱人。',
     characters: [zhaoCharacter],
   },
 ];
@@ -158,7 +187,7 @@ export default function Home() {
           background: '/pixels/scene-gu-side-corridor.png',
           title: '逐个说服入组',
           subtitle: actor?.name || '演员',
-          kind: line.speaker === '玩家' ? 'dialogue' : line.speaker === '老赵' ? 'dialogue' : 'dialogue',
+          kind: 'dialogue',
           speaker: line.speaker === '演员' ? actor?.name || '演员' : line.speaker,
           text: line.text,
           characters: line.speaker === '老赵' ? [zhaoCharacter] : actorCharacter ? [actorCharacter] : [],
@@ -270,7 +299,7 @@ export default function Home() {
         title="6 选 4 捞人"
         subtitle="老赵的素人池"
         speaker="老赵"
-        text="专业演员现在不信这个，信的人你也请不起。你先从我能摸到的人里挑四个。"
+        text="专业演员你请不起，愿意来的也看不上这活。你先从我能摸到的人里挑四个。"
         kind="dialogue"
         characters={[zhaoCharacter]}
         controls={

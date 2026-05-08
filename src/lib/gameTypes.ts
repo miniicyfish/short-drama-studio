@@ -44,7 +44,7 @@ export interface Mindset {
 }
 
 export interface RecruitVisibleLine {
-  speaker: '玩家' | '演员' | '老赵';
+  speaker: '你' | '演员' | '老赵';
   text: string;
 }
 

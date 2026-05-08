@@ -58,14 +58,28 @@ body {
   animation: breathe 2s ease-in-out infinite;
 }
 
+.standee-shell {
+  overflow: visible;
+  filter: drop-shadow(0 26px 36px rgba(0, 0, 0, 0.58));
+}
+
+.standee-shell::before {
+  content: "";
+  position: absolute;
+  inset: 8% -14% -4%;
+  background: radial-gradient(ellipse at center, rgba(10, 14, 20, 0.72), transparent 68%);
+  filter: blur(10px);
+}
+
 .character-standee {
+  border-radius: 42% 42% 18% 18%;
   -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0%, black 5%, black 74%, transparent 100%),
-    radial-gradient(ellipse at center, black 0%, black 54%, transparent 78%);
+    linear-gradient(to bottom, transparent 0%, black 6%, black 68%, rgba(0, 0, 0, 0.88) 76%, transparent 100%),
+    radial-gradient(ellipse at center, black 0%, black 47%, rgba(0, 0, 0, 0.55) 63%, transparent 76%);
   -webkit-mask-composite: source-in;
   mask-image:
-    linear-gradient(to bottom, transparent 0%, black 5%, black 74%, transparent 100%),
-    radial-gradient(ellipse at center, black 0%, black 54%, transparent 78%);
+    linear-gradient(to bottom, transparent 0%, black 6%, black 68%, rgba(0, 0, 0, 0.88) 76%, transparent 100%),
+    radial-gradient(ellipse at center, black 0%, black 47%, rgba(0, 0, 0, 0.55) 63%, transparent 76%);
   mask-composite: intersect;
 }
 
