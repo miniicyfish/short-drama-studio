@@ -16,6 +16,7 @@ type Stage =
   | 'persuasion-task'
   | 'persuasion-input'
   | 'persuasion-playback'
+  | 'pre-shoot-rules'
   | 'pre-shoot-task'
   | 'pre-shoot';
 
@@ -624,13 +625,58 @@ function actorMeetLines(actor: Actor): VNLine[] {
   ]);
 }
 
-const shootRules = [
-  '豪宅只租半天。超一分钟，房东就会从“艺术支持者”变成“按小时收费者”。',
-  '群演是临时叫来的，站久了要补钱；站太久，还会开始问自己到底是不是顾家亲戚。',
-  '摄影、灯光、收音都是熟人价。熟人价的意思是：熟人也会翻脸。',
-  '演员不是专业班底。喊卡太多会崩，改词太多会把霸总改成村支书。',
-  '每幕只有 1-2 次干预机会，任何工具都会消耗次数。',
-];
+const preShootLines = splitVNLines([
+  {
+    id: 'pre-shoot-rule-01',
+    background: '/pixels/scene-gu-banquet-corridor.png',
+    title: '开机前',
+    subtitle: '老赵算账',
+    kind: 'dialogue' as VNLineKind,
+    speaker: '老赵',
+    text: '先说清楚，豪宅只租半天。超一分钟，房东就会从艺术支持者变成按小时收费者。',
+    characters: [zhaoCharacter],
+  },
+  {
+    id: 'pre-shoot-rule-02',
+    background: '/pixels/scene-gu-banquet-corridor.png',
+    title: '开机前',
+    subtitle: '老赵算账',
+    kind: 'dialogue' as VNLineKind,
+    speaker: '老赵',
+    text: '群演是临时叫来的，站久了要补钱；站太久，还会开始问自己到底是不是顾家亲戚。',
+    characters: [zhaoCharacter],
+  },
+  {
+    id: 'pre-shoot-rule-03',
+    background: '/pixels/scene-gu-banquet-corridor.png',
+    title: '开机前',
+    subtitle: '老赵算账',
+    kind: 'dialogue' as VNLineKind,
+    speaker: '老赵',
+    text: '摄影、灯光、收音都是熟人价。熟人价的意思是，熟人也会翻脸。',
+    characters: [zhaoCharacter],
+  },
+  {
+    id: 'pre-shoot-rule-04',
+    background: '/pixels/scene-gu-banquet-corridor.png',
+    title: '开机前',
+    subtitle: '老赵算账',
+    kind: 'dialogue' as VNLineKind,
+    speaker: '老赵',
+    text: '演员不是专业班底。喊卡太多会崩，改词太多会把霸总改成村支书。',
+    characters: [zhaoCharacter],
+  },
+  {
+    id: 'pre-shoot-rule-05',
+    background: '/pixels/scene-gu-banquet-corridor.png',
+    title: '开机前',
+    subtitle: '老赵算账',
+    kind: 'dialogue' as VNLineKind,
+    speaker: '老赵',
+    text: '所以不是你不能管，是这个组经不起你每句都管。你能救最要命的地方，救不了所有地方。',
+    characters: [zhaoCharacter],
+  },
+]);
 
 export default function Home() {
   const router = useRouter();
@@ -639,6 +685,7 @@ export default function Home() {
   const [persuasionSceneIndex, setPersuasionSceneIndex] = useState(0);
   const [activePersuasionActorIndex, setActivePersuasionActorIndex] = useState(0);
   const [persuasionLineIndex, setPersuasionLineIndex] = useState(0);
+  const [preShootLineIndex, setPreShootLineIndex] = useState(0);
   const [selectedActorIds, setSelectedActorIds] = useState<string[]>([]);
   const [words, setWords] = useState<Record<string, string>>({});
   const [recruitResults, setRecruitResults] = useState<RecruitResult[]>([]);
@@ -687,6 +734,7 @@ export default function Home() {
       ]);
   }, [activeActor, recruitResults]);
   const currentPersuasionLine = persuasionLines[persuasionLineIndex];
+  const currentPreShootLine = preShootLines[preShootLineIndex];
 
   const toggleActor = (actorId: string) => {
     setSelectedActorIds((current) => {
@@ -749,7 +797,8 @@ export default function Home() {
       setStage('persuasion-transition');
       return;
     }
-    setStage('pre-shoot-task');
+    setPreShootLineIndex(0);
+    setStage('pre-shoot-rules');
   };
 
   const nextPersuasionSceneLine = () => {
@@ -758,6 +807,14 @@ export default function Home() {
       return;
     }
     setStage('persuasion-task');
+  };
+
+  const nextPreShootLine = () => {
+    if (preShootLineIndex < preShootLines.length - 1) {
+      setPreShootLineIndex((current) => current + 1);
+      return;
+    }
+    setStage('pre-shoot-task');
   };
 
   useEffect(() => {
@@ -774,12 +831,18 @@ export default function Home() {
       const timer = window.setTimeout(nextPersuasionLine, autoDelayFor(currentPersuasionLine.text));
       return () => window.clearTimeout(timer);
     }
+    if (stage === 'pre-shoot-rules' && currentPreShootLine) {
+      const timer = window.setTimeout(nextPreShootLine, autoDelayFor(currentPreShootLine.text));
+      return () => window.clearTimeout(timer);
+    }
   }, [
     autoPlay,
     currentIntro,
+    currentPreShootLine,
     currentPersuasionLine,
     currentPersuasionSceneLine,
     introIndex,
+    preShootLineIndex,
     persuasionLineIndex,
     persuasionSceneIndex,
     stage,
@@ -1011,6 +1074,26 @@ export default function Home() {
     );
   }
 
+  if (stage === 'pre-shoot-rules' && currentPreShootLine) {
+    return (
+      <VNStage
+        background={currentPreShootLine.background}
+        title={currentPreShootLine.title}
+        subtitle={currentPreShootLine.subtitle}
+        speaker={currentPreShootLine.speaker}
+        text={currentPreShootLine.text}
+        kind={currentPreShootLine.kind}
+        characters={currentPreShootLine.characters}
+        history={historyFromLines(preShootLines, preShootLineIndex)}
+        controls={playbackControls(
+          nextPreShootLine,
+          preShootLineIndex >= preShootLines.length - 1,
+          '看任务'
+        )}
+      />
+    );
+  }
+
   if (stage === 'pre-shoot-task') {
     return (
       <VNStage
@@ -1018,12 +1101,12 @@ export default function Home() {
         title="片场任务"
         subtitle="开机前"
         kind="task"
-        speaker="任务 03｜记住片场限制"
-        text={'目标：在真正拍摄前理解工具限制。\n规则：每幕只能干预 1-2 次，任何工具都会消耗次数。\n原因：钱、人、场地、面子都撑不住你每句都管。'}
+        speaker="任务 03｜正式开拍"
+        text={'目标：拍完第一集 9 幕样片。\n规则：每幕只能干预 1-2 次，任何工具都会消耗次数。\n提醒：如果你不操作，片场会按当前剧本顺着拍下去。'}
         characters={[zhaoCharacter]}
         controls={
-          <button onClick={() => setStage('pre-shoot')} className="vn-control-button">
-            听老赵算账
+          <button onClick={start} className="vn-control-button">
+            开机
           </button>
         }
       />
@@ -1043,15 +1126,6 @@ export default function Home() {
         <button onClick={start} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
           开机
         </button>
-      }
-      overlay={
-        <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
-          {shootRules.map((rule) => (
-            <div key={rule} className="border border-border bg-bg-deep/84 p-4 text-sm leading-7 text-text-secondary backdrop-blur">
-              {rule}
-            </div>
-          ))}
-        </div>
       }
     />
   );
