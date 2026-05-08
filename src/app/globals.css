@@ -129,6 +129,14 @@ body {
   justify-content: flex-end;
 }
 
+.vn-frame-footer {
+  position: relative;
+  z-index: 2;
+  margin-top: 22px;
+  display: flex;
+  justify-content: center;
+}
+
 .vn-frame-name {
   display: flex;
   align-items: center;
@@ -341,11 +349,6 @@ body {
   justify-content: center;
   padding-right: 0;
   margin-bottom: 18px;
-}
-
-.vn-frame-task .vn-frame-controls {
-  right: 26px;
-  top: 26px;
 }
 
 .vn-frame-task .vn-frame-name {
@@ -576,11 +579,6 @@ body {
   .vn-frame-controls {
     right: 14px;
     top: 14px;
-  }
-
-  .vn-frame-task .vn-frame-controls {
-    right: 18px;
-    top: 18px;
   }
 
   .vn-dialogue-row {
