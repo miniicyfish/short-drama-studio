@@ -93,6 +93,13 @@ export default function VNStage({
   layout = 'default',
 }: VNStageProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const frameCharacter =
+    kind === 'dialogue'
+      ? characters.find((character) => character.active !== false) || characters[0]
+      : null;
+  const stageCharacters = frameCharacter
+    ? characters.filter((character) => character.id !== frameCharacter.id)
+    : characters;
   const displaySpeaker =
     speaker ||
     (kind === 'task' ? kindLabel(kind) : undefined);
@@ -114,6 +121,23 @@ export default function VNStage({
       <p className={bodyClass(kind)}>{formatText(kind, text)}</p>
     </div>
   ) : null;
+  const framedDialogue =
+    frame && frameCharacter ? (
+      <div className="vn-dialogue-row">
+        <div className="vn-dialogue-portrait" aria-hidden="true">
+          <Image
+            src={frameCharacter.image}
+            alt=""
+            fill
+            sizes="(min-width: 768px) 160px, 84px"
+            className="object-contain object-bottom"
+          />
+        </div>
+        {frame}
+      </div>
+    ) : (
+      frame
+    );
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg-deep text-text-primary">
@@ -166,7 +190,7 @@ export default function VNStage({
       )}
 
       <div className="absolute inset-x-0 bottom-28 top-16 pointer-events-none">
-        {characters.map((character) => (
+        {stageCharacters.map((character) => (
           <div
             key={character.id}
             className={`standee-shell absolute bottom-0 h-[68vh] w-[34vw] max-w-[320px] transition-all duration-300 ${
@@ -193,7 +217,7 @@ export default function VNStage({
       <div className={`absolute inset-x-0 bottom-0 z-10 p-4 md:p-6 ${layout === 'shooting' ? 'vn-bottom-shooting' : ''}`}>
         <div className="mx-auto max-w-5xl">
           {children}
-          {kind !== 'task' && frame}
+          {kind !== 'task' && framedDialogue}
         </div>
       </div>
     </main>
