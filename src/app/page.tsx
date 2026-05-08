@@ -941,10 +941,10 @@ export default function Home() {
         background="/pixels/scene-gu-side-corridor.png"
         title="逐个说服入组"
         subtitle={activeActor.name}
-        speaker="你"
-        text="你把话压短。这个年代，没人会为了一个太完整的梦想停下脚步。"
+        speaker="老赵"
+        text="把话压短。这个年代，没人会为了一个太完整的梦想停下脚步。"
         kind="dialogue"
-        characters={actorCharacter(activeActor)}
+        characters={[zhaoCharacter]}
         controls={
           <button onClick={recruit} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
             {loading ? '说服中' : '说出口'}
