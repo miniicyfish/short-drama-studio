@@ -87,6 +87,7 @@ export function buildDraftPrompt(input: DraftRequest) {
 2. beat 是剧本节拍，不等于最终逐句文本。每个关键 beat 可以展开成 1-3 行。
 3. 每幕行数必须遵守 targetLineCount，通常 18-26 行；全片目标约 170-210 行，贴近原剧本第一集体量。
 4. 输出要混合镜头动作、台词、内心 OS、导演可见事故点，不要把多个动作和台词压成一句摘要。
+4a. 玩家可见 lines 里禁止出现“雷点”“炸点”“导演可见”“事故点”“AI 可根据”“本幕最大”等内部设计标注。
 5. 每行都要有 lineId，格式如 act_01_l01；尽量填写 sourceBeatId，对应来源 beat。
 6. beat.mustKeep 为 true 的功能必须被保留，但具体台词/动作可以受演员入组心态轻微变形。
 7. 每幕都要有 defaultOutcome：你不干预时，本幕写入片场事实账本的结果。
