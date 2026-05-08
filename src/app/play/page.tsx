@@ -645,10 +645,7 @@ export default function PlayPage() {
             </aside>
           </div>
         }
-      >
-        {currentLine?.type === 'action' && <div className="mb-2 text-xs text-accent-gold">镜头动作</div>}
-        {currentLine?.type === 'inner' && <div className="mb-2 text-xs text-accent-blue">人物内心</div>}
-      </VNStage>
+      />
 
       {rewriteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-deep/80 px-4 backdrop-blur">
