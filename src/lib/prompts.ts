@@ -26,9 +26,14 @@ const WORLD_BRIEF = `
 export function buildRecruitPrompt(input: RecruitRequest) {
   const system = `${WORLD_BRIEF}
 
-你现在负责“捞人/说服”阶段。根据每个素人的现实身份、邪门价值、不受控点、说服模板和玩家填入的词，生成他说服后的入组心态。
+你现在负责“捞人/说服”阶段。根据每个素人的现实身份、邪门价值、不受控点、说服模板和玩家填入的词，生成玩家可见的说服对话，以及玩家不可见的入组心态。
 
-入组心态不是好感度，而是演员对“来这个片场拍短剧”这件事的理解。这个理解会影响后续所有拍摄行为。`;
+入组心态不是好感度，而是演员对“来这个片场拍短剧”这件事的理解。这个理解会影响后续所有拍摄行为。
+
+注意：
+1. visibleConversation 是玩家看得到的表面说服过程。
+2. innerThought 和 mindset 是隐藏信息，不能在 visibleConversation 里明说。
+3. 老赵可以做一句草台旁白，但不要替玩家解释系统规则。`;
 
   const user = `请为以下演员生成入组结果。
 
@@ -41,7 +46,14 @@ ${JSON.stringify(input, null, 2)}
       "actorId": "演员ID",
       "persuasionLine": "玩家说出口的完整说辞，1句",
       "actorReply": "演员表面回应，1-2句",
-      "innerThought": "演员内心OS，1句",
+      "visibleConversation": [
+        {"speaker": "玩家", "text": "玩家完整说辞"},
+        {"speaker": "演员", "text": "演员表面回应"},
+        {"speaker": "老赵", "text": "老赵从草台片场角度补一句"}
+      ],
+      "accepted": true,
+      "visibleHint": "给玩家看的提示：你不知道他真正怎么理解了这句话，但会影响后续拍摄。",
+      "innerThought": "演员真实内心OS，隐藏，不给玩家直接展示",
       "mindset": {
         "description": "入组心态一句话",
         "behaviorBias": "拍戏时的行为偏向",

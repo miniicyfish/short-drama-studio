@@ -43,10 +43,18 @@ export interface Mindset {
   toolSensitivity: Record<ToolType, string>;
 }
 
+export interface RecruitVisibleLine {
+  speaker: '玩家' | '演员' | '老赵';
+  text: string;
+}
+
 export interface RecruitResult {
   actorId: string;
   persuasionLine: string;
   actorReply: string;
+  visibleConversation: RecruitVisibleLine[];
+  accepted: boolean;
+  visibleHint: string;
   innerThought: string;
   mindset: Mindset;
 }

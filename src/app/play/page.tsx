@@ -72,6 +72,8 @@ export default function PlayPage() {
   const [selectedText, setSelectedText] = useState('');
   const [rewritePrompt, setRewritePrompt] = useState('');
   const [epilogue, setEpilogue] = useState<EpilogueResponse | null>(null);
+  const [autoMode, setAutoMode] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     const raw = window.localStorage.getItem('short-drama-session');
@@ -144,7 +146,7 @@ export default function PlayPage() {
   const currentLine = currentAct?.lines[lineIndex];
   const interventionLimit = actIndex === 1 || actIndex === 5 || actIndex === 7 ? 2 : 1;
   const canIntervene = Boolean(currentLine) && usedThisAct < interventionLimit && !loading;
-  const visibleLines = currentAct ? currentAct.lines.slice(0, lineIndex + 1) : [];
+  const historyLines = currentAct ? currentAct.lines.slice(Math.max(0, lineIndex - 6), lineIndex + 1) : [];
 
   const currentBackground = currentAct
     ? actBackgrounds[currentAct.actId] || '/pixels/scene-gu-banquet-corridor.png'
@@ -171,16 +173,6 @@ export default function PlayPage() {
   const currentSkeleton = useMemo(
     () => (currentAct ? scriptSkeleton.find((item) => item.actId === currentAct.actId) : null),
     [currentAct]
-  );
-
-  const affectedByLedger = useCallback(
-    (actId: string) =>
-      canonLedger.some(
-        (entry) =>
-          (entry.affectedFutureActs || []).includes(actId) ||
-          (entry.futureDirectives && entry.futureDirectives.length > 0)
-      ),
-    [canonLedger]
   );
 
   const reviseActIfNeeded = useCallback(
@@ -253,14 +245,37 @@ export default function PlayPage() {
     await reviseActIfNeeded(nextIndex, nextLedger);
   }, [actIndex, actOutcomes, acts.length, canonLedger, currentAct, reviseActIfNeeded]);
 
-  const nextLine = async () => {
+  const nextLine = useCallback(async () => {
     if (!currentAct || loading) return;
     if (lineIndex < currentAct.lines.length - 1) {
       setLineIndex((current) => current + 1);
       return;
     }
     await finishAct();
-  };
+  }, [currentAct, finishAct, lineIndex, loading]);
+
+  useEffect(() => {
+    if (!autoMode || loading || rewriteOpen || epilogue || !currentAct || !currentLine) return;
+    const isFinalLine = actIndex >= acts.length - 1 && lineIndex >= currentAct.lines.length - 1;
+    if (isFinalLine) return;
+
+    const delay = Math.min(4800, Math.max(1700, currentLine.text.length * 70));
+    const timer = window.setTimeout(() => {
+      void nextLine();
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [
+    actIndex,
+    acts.length,
+    autoMode,
+    currentAct,
+    currentLine,
+    epilogue,
+    lineIndex,
+    loading,
+    nextLine,
+    rewriteOpen,
+  ]);
 
   const applyIntervention = (toolType: ToolType, data: InterventionResponse) => {
     if (!currentAct || !currentLine) return;
@@ -314,6 +329,7 @@ export default function PlayPage() {
 
   const useTool = async (toolType: ToolType, rewrite?: { text: string; prompt: string }) => {
     if (!session || !currentAct || !currentLine || !canIntervene) return;
+    setAutoMode(false);
     const currentBeat = currentSkeleton?.beats.find((beat) => beat.beatId === currentLine.sourceBeatId);
     const currentBeatIndex = currentBeat
       ? currentSkeleton?.beats.findIndex((beat) => beat.beatId === currentBeat.beatId) ?? -1
@@ -462,10 +478,21 @@ export default function PlayPage() {
             <div>
               <div className="text-sm font-bold text-accent-gold">{session.project.title}</div>
               <div className="text-xs text-text-dim">
-                第 {actIndex + 1}/{acts.length || 9} 幕 · {currentAct?.title || '生成中'}
+                第 {actIndex + 1}/{acts.length || 9} 幕 · {currentAct?.title || '生成中'} · 第{' '}
+                {currentAct ? lineIndex + 1 : 0}/{currentAct?.lines.length || 0} 句
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setAutoMode((current) => !current)}
+                className={`border px-3 py-2 text-xs ${
+                  autoMode
+                    ? 'border-accent-blue bg-accent-blue/10 text-accent-blue'
+                    : 'border-border bg-bg-card text-text-secondary'
+                }`}
+              >
+                {autoMode ? '自动播放' : '手动播放'}
+              </button>
               {(Object.keys(stats) as Array<keyof Stats>).map((key) => (
                 <div key={key} className="min-w-16 border border-border bg-bg-card px-2 py-1 text-center">
                   <div className="text-[10px] text-text-dim">{statLabel(key)}</div>
@@ -509,30 +536,92 @@ export default function PlayPage() {
               </div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 max-h-[56vh] overflow-y-auto p-4">
-              <div className="space-y-3">
-                {visibleLines.map((lineItem) => (
-                  <div
-                    key={lineItem.lineId}
-                    className={`animate-fade-in border p-4 backdrop-blur ${lineTone(lineItem.riskSignal)}`}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="text-sm font-bold text-accent-gold">{lineItem.speaker}</div>
-                      <div className="text-xs text-text-dim">{lineItem.mood}</div>
+            {historyOpen && (
+              <div className="absolute bottom-44 left-4 right-4 max-h-72 overflow-y-auto border border-border bg-bg-deep/90 p-3 backdrop-blur md:right-auto md:w-[520px]">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-xs text-accent-blue">最近几句</div>
+                  <button onClick={() => setHistoryOpen(false)} className="text-xs text-text-dim">
+                    收起
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {historyLines.map((lineItem) => (
+                    <div key={lineItem.lineId} className={`border p-3 ${lineTone(lineItem.riskSignal)}`}>
+                      <div className="mb-1 text-xs text-accent-gold">{lineItem.speaker}</div>
+                      <p className="text-xs leading-6 text-text-secondary">
+                        {lineItem.type === 'dialogue' ? `“${lineItem.text}”` : lineItem.text}
+                      </p>
                     </div>
-                    <p className="text-sm leading-7 text-text-primary">
-                      {lineItem.type === 'dialogue' ? `“${lineItem.text}”` : lineItem.text}
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className={`animate-fade-in border p-4 backdrop-blur md:p-5 ${currentLine ? lineTone(currentLine.riskSignal) : 'border-border bg-bg-card/85'}`}>
+                {currentLine ? (
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-base font-bold text-accent-gold">{currentLine.speaker}</div>
+                        <div className="text-xs text-text-dim">{currentLine.mood}</div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-text-dim">
+                        <button
+                          onClick={() => setHistoryOpen((current) => !current)}
+                          className="border border-border bg-bg-deep px-2 py-1 text-text-secondary hover:border-accent-blue"
+                        >
+                          记录
+                        </button>
+                        <span>
+                          {lineIndex + 1}/{currentAct?.lines.length || 0}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="min-h-16 text-base leading-8 text-text-primary md:text-lg">
+                      {currentLine.type === 'dialogue' ? `“${currentLine.text}”` : currentLine.text}
                     </p>
-                    {lineItem.innerThought && (
-                      <p className="mt-2 border-l border-accent-blue/35 pl-3 text-xs leading-6 text-text-secondary italic">
-                        内心：{lineItem.innerThought}
+                    {currentLine.innerThought && (
+                      <p className="mt-3 border-l border-accent-blue/35 pl-3 text-xs leading-6 text-text-secondary italic">
+                        画外内心：{currentLine.innerThought}
                       </p>
                     )}
-                  </div>
-                ))}
-                {loading && <LoadingIndicator text={loading} />}
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-xs text-text-dim">
+                        {autoMode ? '自动播放中。使用工具会暂停。' : '手动播放中。'}
+                      </div>
+                      {!autoMode && (
+                        <button
+                          disabled={Boolean(loading)}
+                          onClick={
+                            actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
+                              ? generateEpilogue
+                              : nextLine
+                          }
+                          className="border border-accent-gold bg-accent-gold/15 px-5 py-2 text-xs text-accent-gold hover:bg-accent-gold/25 disabled:opacity-40 pixel-text"
+                        >
+                          {actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
+                            ? '生成样片'
+                            : '下一句'}
+                        </button>
+                      )}
+                      {autoMode && actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1 && (
+                        <button
+                          disabled={Boolean(loading)}
+                          onClick={generateEpilogue}
+                          className="border border-accent-gold bg-accent-gold/15 px-5 py-2 text-xs text-accent-gold hover:bg-accent-gold/25 disabled:opacity-40 pixel-text"
+                        >
+                          生成样片
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <LoadingIndicator text={loading || '准备拍摄稿'} />
+                )}
+                {loading && currentLine && <LoadingIndicator text={loading} />}
                 {error && (
-                  <div className="border border-accent-red/40 bg-accent-red/10 p-3 text-sm text-accent-red">
+                  <div className="mt-3 border border-accent-red/40 bg-accent-red/10 p-3 text-sm text-accent-red">
                     {error}
                   </div>
                 )}
@@ -556,7 +645,9 @@ export default function PlayPage() {
                         <div className="text-sm text-text-primary">
                           {cast.actorName} <span className="text-text-dim">饰</span> {cast.scriptRoleName}
                         </div>
-                        <div className="text-xs leading-5 text-text-dim">{state?.mindset.description}</div>
+                        <div className="text-xs leading-5 text-text-dim">
+                          表面状态：{state?.mood || '等戏'} · 压力 {state?.pressure ?? 0}
+                        </div>
                       </div>
                     </div>
                   );
@@ -572,6 +663,7 @@ export default function PlayPage() {
                     key={tool.id}
                     disabled={!canIntervene}
                     onClick={() => {
+                      setAutoMode(false);
                       if (tool.id === 'rewrite') {
                         setSelectedText(currentLine?.text || '');
                         setRewritePrompt('');
@@ -590,15 +682,30 @@ export default function PlayPage() {
               </div>
             </div>
 
-            <button
-              disabled={Boolean(loading) || !currentAct}
-              onClick={actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1 ? generateEpilogue : nextLine}
-              className="border border-accent-gold bg-accent-gold/15 px-6 py-3 text-sm text-accent-gold transition-colors hover:bg-accent-gold/25 disabled:opacity-40 pixel-text"
-            >
-              {actIndex >= acts.length - 1 && lineIndex >= (currentAct?.lines.length || 1) - 1
-                ? '生成样片'
-                : '继续拍'}
-            </button>
+            <div className="border border-border bg-bg-card p-4">
+              <div className="mb-3 text-sm font-bold text-accent-gold">播放控制</div>
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setAutoMode(true)}
+                  className={`border px-3 py-2 text-sm ${
+                    autoMode ? 'border-accent-blue bg-accent-blue/10 text-accent-blue' : 'border-border text-text-secondary'
+                  }`}
+                >
+                  自动
+                </button>
+                <button
+                  onClick={() => setAutoMode(false)}
+                  className={`border px-3 py-2 text-sm ${
+                    !autoMode ? 'border-accent-gold bg-accent-gold/10 text-accent-gold' : 'border-border text-text-secondary'
+                  }`}
+                >
+                  手动
+                </button>
+              </div>
+              <p className="text-xs leading-6 text-text-dim">
+                默认顺着拍。导演工具会暂停播放，并把当前干预写进后续片场事实。
+              </p>
+            </div>
 
             <div className="flex-1 border border-border bg-bg-card p-4">
               <div className="mb-3 text-sm font-bold text-accent-gold">片场事实账本</div>

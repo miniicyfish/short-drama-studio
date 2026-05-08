@@ -25,28 +25,42 @@ function zeroStats(delta?: Partial<Stats>): Stats {
 
 export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitResult[] } {
   return {
-    recruitResults: input.selectedActors.map((actor) => ({
-      actorId: actor.id,
-      persuasionLine: actor.persuasionTemplate.replace('____', actor.playerWord),
-      actorReply: `${actor.name}停了一下，像是被“${actor.playerWord}”这个词说中了。`,
-      innerThought: `他/她开始把这次短剧理解成一次关于“${actor.playerWord}”的机会。`,
-      mindset: {
-        description: `我来这里，是因为他们看见了我身上“${actor.playerWord}”的东西。`,
-        behaviorBias: `${actor.lossDirection}压力越大，这个偏向越明显。`,
-        conflictTriggers: [
-          actor.uncontrolledPoint,
-          '被频繁打断',
-          '被别人当成笑话',
-          `别人否定“${actor.playerWord}”这件事`,
+    recruitResults: input.selectedActors.map((actor) => {
+      const persuasionLine = actor.persuasionTemplate.replace('____', actor.playerWord);
+      const actorReply = `${actor.name}停了一下，说：“行，我试试。但你别到时候又说我理解错了。”`;
+      return {
+        actorId: actor.id,
+        persuasionLine,
+        actorReply,
+        visibleConversation: [
+          { speaker: '玩家', text: persuasionLine },
+          { speaker: '演员', text: actorReply },
+          {
+            speaker: '老赵',
+            text: `老赵把人往门口一送，小声说：“看着是答应了，至于他心里怎么听的，等开机就知道。”`,
+          },
         ],
-        toolSensitivity: {
-          cut: '会先怀疑是不是自己理解错了，也可能因此更用力。',
-          rewrite: '如果改词贴近他的理解，会明显变强；如果改得更悬浮，会更跑偏。',
-          chicken: '能短暂提高配合度，但可能让他重新审视这是不是又一个草台活。',
-          demo: '会认真模仿导演示范，但一定会带上自己的职业惯性。',
+        accepted: true,
+        visibleHint: '你不知道他真正怎么理解了这句话，但这种理解会写进后面的片场反应。',
+        innerThought: `他/她开始把这次短剧理解成一次关于“${actor.playerWord}”的机会。`,
+        mindset: {
+          description: `我来这里，是因为他们看见了我身上“${actor.playerWord}”的东西。`,
+          behaviorBias: `${actor.lossDirection}压力越大，这个偏向越明显。`,
+          conflictTriggers: [
+            actor.uncontrolledPoint,
+            '被频繁打断',
+            '被别人当成笑话',
+            `别人否定“${actor.playerWord}”这件事`,
+          ],
+          toolSensitivity: {
+            cut: '会先怀疑是不是自己理解错了，也可能因此更用力。',
+            rewrite: '如果改词贴近他的理解，会明显变强；如果改得更悬浮，会更跑偏。',
+            chicken: '能短暂提高配合度，但可能让他重新审视这是不是又一个草台活。',
+            demo: '会认真模仿导演示范，但一定会带上自己的职业惯性。',
+          },
         },
-      },
-    })),
+      };
+    }),
   };
 }
 
