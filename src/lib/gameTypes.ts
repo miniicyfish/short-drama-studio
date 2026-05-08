@@ -149,7 +149,7 @@ export interface ToolDefinition {
 
 export interface RecruitRequest {
   project: Project;
-  selectedActors: Array<Actor & { playerWord: string }>;
+  selectedActors: Array<Actor & { playerWord: string; assignedRole?: Casting }>;
 }
 
 export interface DraftRequest {

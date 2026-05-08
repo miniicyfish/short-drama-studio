@@ -592,13 +592,18 @@ function genderLabel(gender: Actor['gender']) {
   return gender === 'female' ? '女' : '男';
 }
 
-function actorMeetLines(actor: Actor): VNLine[] {
+function roleShortName(roleName?: string) {
+  return roleName?.split('/')[0].trim();
+}
+
+function actorMeetLines(actor: Actor, assignedRoleName?: string): VNLine[] {
+  const roleName = roleShortName(assignedRoleName);
   const target = {
     'sun-manli': ['美甲店门口', '老赵把你带到小区美甲店门口。玻璃门上贴着“今日爆款：富贵千金甲”。', '老板娘正在给客人讲前男友的八卦，听到“豪门离婚”四个字，剪刀停在半空。'],
     'wang-nana': ['美甲店后间', '王娜娜坐在补光灯前试口红，手机支架比人还稳。', '老赵说她今天本来要拍变装，听说有镜头，立刻把假睫毛贴得像要出征。'],
-    'zhang-jiahao': ['夜场后门', '老赵带你绕到夜场后门，张嘉豪刚从一场生日局下来，衬衫领口还亮着银粉。', '他听见“顾总”两个字，第一反应是问要不要自备香水。'],
-    'qiu-peng': ['城中村楼下', '邱鹏拎着一袋打折面包站在楼下，朋友圈刚发完“人生不会一直低谷”。', '老赵小声说，别刺激他，他最近把每个机会都当成命运重新开机。'],
-    'guo-gang': ['写字楼门岗', '夜班门岗灯光惨白，郭港坐在监控屏前，像一个被迫守护豪门秘密的男人。', '老赵说他只要不说话就很贵，一说话就容易回到物业频道。'],
+    'zhang-jiahao': ['夜场后门', '老赵带你绕到夜场后门，张嘉豪刚从一场生日局下来，衬衫领口还亮着银粉。', `他听见要演${roleName || '顾沉舟'}，第一反应是问要不要自备香水。`],
+    'qiu-peng': ['城中村楼下', '邱鹏拎着一袋打折面包站在楼下，朋友圈刚发完“人生不会一直低谷”。', `老赵小声说，别刺激他。他现在把“${roleName || '一个角色'}”也听得像命运重新开机。`],
+    'guo-gang': ['写字楼门岗', '夜班门岗灯光惨白，郭港坐在监控屏前，像一个被迫守护豪门秘密的男人。', `老赵说他演${roleName || '豪门相关人物'}最贵的地方是不说话，一说话就容易回到物业频道。`],
     'lin-xiaoman': ['排练室外廊', '林小满站在旧排练室外，帽檐压得很低，像随时准备从镜头里退出去。', '老赵说她懂镜头，但你最好别让她觉得这又是一次被人拿去截图的热闹。'],
   }[actor.id] || ['临时见面点', `老赵把你带去见${actor.name}。`, '这人能来，但为什么能来，老赵也说不太清。'];
 
@@ -721,9 +726,12 @@ export default function Home() {
 
   const currentIntro = introLines[introIndex];
   const activeActor = selectedActors[activePersuasionActorIndex];
+  const activeCasting = activeActor
+    ? casting.find((item) => item.actorId === activeActor.id)
+    : undefined;
   const persuasionSceneLines = useMemo(
-    () => (activeActor ? actorMeetLines(activeActor) : []),
-    [activeActor]
+    () => (activeActor ? actorMeetLines(activeActor, activeCasting?.scriptRoleName) : []),
+    [activeActor, activeCasting?.scriptRoleName]
   );
   const currentPersuasionSceneLine = persuasionSceneLines[persuasionSceneIndex];
   const persuasionLines = useMemo(() => {
@@ -791,6 +799,7 @@ export default function Home() {
             {
               ...activeActor,
               playerWord: words[activeActor.id] || activeActor.defaultWord,
+              assignedRole: activeCasting,
             },
           ],
         }),
@@ -1053,7 +1062,7 @@ export default function Home() {
         subtitle="逐个说服入组"
         kind="task"
         speaker={`任务 02｜说服 ${activeActor.name}`}
-        text={`目标：用一句话把${activeActor.name}拉进组。\n方式：只填一个词，让说辞击中他/她最在意的地方。\n风险：你看不到真实心态，但它会写进后续拍摄。`}
+        text={`目标：用一句话把${activeActor.name}拉进组，预定角色：${activeCasting?.scriptRoleName || '待分配'}。\n方式：只填一个词，让说辞击中他/她最在意的地方。\n风险：你看不到真实心态，但它会写进后续拍摄。`}
         characters={actorCharacter(activeActor)}
         controls={
           <button onClick={() => setStage('persuasion-input')} className="vn-control-button">
@@ -1088,7 +1097,9 @@ export default function Home() {
                 </div>
                 <div>
                   <div className="font-bold text-accent-gold">{activeActor.name}</div>
-                  <div className="text-xs text-accent-blue">{activeActor.label}</div>
+                  <div className="text-xs text-accent-blue">
+                    {activeActor.label} · 预定 {activeCasting?.scriptRoleName || '待分配'}
+                  </div>
                 </div>
               </div>
               <div className="text-base leading-8 text-text-secondary">

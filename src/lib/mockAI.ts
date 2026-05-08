@@ -26,10 +26,10 @@ function zeroStats(delta?: Partial<Stats>): Stats {
 const recruitScenes: Record<
   string,
   {
-    challenge: string;
+    challenge: string | ((roleName?: string) => string);
     playerNudge: (word: string) => string;
     accept: (word: string) => string;
-    zhao: string;
+    zhao: string | ((roleName?: string) => string);
   }
 > = {
   'lin-xiaoman': {
@@ -51,13 +51,22 @@ const recruitScenes: Record<
     zhao: '她现在信了，而且信得很具体。你最好真给她一个机位。',
   },
   'zhang-jiahao': {
-    challenge: '霸总我懂，但你这个顾总，是冷一点，还是危险一点？',
+    challenge: (roleName) =>
+      roleName?.includes('周特助')
+        ? '助理我也能演，但他是商务助理，还是那种会替老板挡酒的助理？'
+        : '霸总我懂，但你这个顾总，是冷一点，还是危险一点？',
     playerNudge: (word) => `不是夜场那种近，是“${word}”到让人想躲，但又躲不开。`,
     accept: () => '懂了，少笑，多看人。这个我能试。',
-    zhao: '他说懂了。以我的经验，他懂的东西通常会带一点灯球味。',
+    zhao: (roleName) =>
+      roleName?.includes('周特助')
+        ? '他说懂了。以我的经验，他演助理也会像刚从包厢门口进来。'
+        : '他说懂了。以我的经验，他懂的东西通常会带一点灯球味。',
   },
   'qiu-peng': {
-    challenge: '你确定找我？我现在这个状态，演顾总是不是太抽象了。',
+    challenge: (roleName) =>
+      roleName?.includes('周特助')
+        ? '你确定找我演助理？我现在看起来像比老板还需要人扶一把。'
+        : '你确定找我？我现在这个状态，演顾总是不是太抽象了。',
     playerNudge: (word) => `我要的不是像有钱，是“${word}”之后还硬撑体面的那股劲。`,
     accept: () => '那我试试。反正我现在也没什么不能丢人的。',
     zhao: '这句说到他心里了，但也可能说深了。深了就容易真疼。',
@@ -74,12 +83,16 @@ export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitRes
   return {
     recruitResults: input.selectedActors.map((actor) => {
       const persuasionLine = actor.persuasionTemplate.replace('____', actor.playerWord);
+      const roleName = actor.assignedRole?.scriptRoleName;
       const scene = recruitScenes[actor.id] || {
         challenge: '你们这个听着不太靠谱。',
         playerNudge: (word: string) => `不靠谱才需要你身上那种“${word}”的东西。`,
         accept: () => '行，我可以来看看。',
         zhao: '看着是答应了，至于心里怎么听的，等开机就知道。',
       };
+      const challenge =
+        typeof scene.challenge === 'function' ? scene.challenge(roleName) : scene.challenge;
+      const zhao = typeof scene.zhao === 'function' ? scene.zhao(roleName) : scene.zhao;
       const actorReply = scene.accept(actor.playerWord);
       return {
         actorId: actor.id,
@@ -87,10 +100,10 @@ export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitRes
         actorReply,
         visibleConversation: [
           { speaker: '你', text: persuasionLine },
-          { speaker: '演员', text: scene.challenge },
+          { speaker: '演员', text: challenge },
           { speaker: '你', text: scene.playerNudge(actor.playerWord) },
           { speaker: '演员', text: actorReply },
-          { speaker: '老赵', text: scene.zhao },
+          { speaker: '老赵', text: zhao },
         ],
         accepted: true,
         visibleHint: '你不知道他真正怎么理解了这句话，但这种理解会写进后面的片场反应。',
