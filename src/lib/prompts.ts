@@ -31,10 +31,12 @@ export function buildRecruitPrompt(input: RecruitRequest) {
 入组心态不是好感度，而是演员对“来这个片场拍短剧”这件事的理解。这个理解会影响后续所有拍摄行为。
 
 注意：
-1. visibleConversation 是你看得到的表面说服过程。
+1. visibleConversation 是你看得到的表面说服过程，必须根据演员身份、说服模板和填入的词实时生成，不要套用固定流程。
 2. innerThought 和 mindset 是隐藏信息，不能在 visibleConversation 里明说。
 3. 老赵可以做一句草台旁白，但不要替你解释系统规则。
-4. visibleConversation 的 speaker 使用“你”“演员”“老赵”，不要使用“玩家”。`;
+4. visibleConversation 的 speaker 使用“你”“演员”“老赵”，不要使用“玩家”。
+5. visibleConversation 写 4-6 句，像真实说服过程：你先说完整说辞，演员质疑或接话，你再顺着填入的词补一句，演员表面答应，老赵补一句片场现实。
+6. text 只写角色真正说出口的话，不要写“某某说：”、不要外包中文引号、不要写旁白动作。`;
 
   const user = `请为以下演员生成入组结果。
 
@@ -48,9 +50,11 @@ ${JSON.stringify(input, null, 2)}
       "persuasionLine": "你说出口的完整说辞，1句",
       "actorReply": "演员表面回应，1-2句",
       "visibleConversation": [
-        {"speaker": "你", "text": "你说出口的完整说辞"},
-        {"speaker": "演员", "text": "演员表面回应"},
-        {"speaker": "老赵", "text": "老赵从草台片场角度补一句"}
+        {"speaker": "你", "text": "你说出口的完整说辞，不带引号"},
+        {"speaker": "演员", "text": "演员基于自身经历提出一句质疑或误解，不带引号"},
+        {"speaker": "你", "text": "你顺着填入的词补一句说服，不带引号"},
+        {"speaker": "演员", "text": "演员表面答应，但保留一点个人理解，不带引号"},
+        {"speaker": "老赵", "text": "老赵从草台片场角度补一句，不带引号"}
       ],
       "accepted": true,
       "visibleHint": "给你看的提示：你不知道他真正怎么理解了这句话，但会影响后续拍摄。",

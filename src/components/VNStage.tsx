@@ -66,8 +66,6 @@ function bodyClass(kind: VNLineKind) {
 }
 
 function formatText(kind: VNLineKind, value: string) {
-  if (kind === 'dialogue') return `“${value}”`;
-  if (kind === 'action') return value;
   return value;
 }
 
@@ -83,15 +81,22 @@ export default function VNStage({
   overlay,
   controls,
 }: VNStageProps) {
+  const displaySpeaker =
+    speaker ||
+    (kind === 'task' ? kindLabel(kind) : undefined);
+  const showHeader = Boolean(displaySpeaker || controls);
   const frame = text ? (
     <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
-      <div className="vn-frame-head">
-        <div className="vn-frame-name">
-          {kind !== 'dialogue' && <span className="vn-frame-kind">{kindLabel(kind)}</span>}
-          <span className="vn-frame-speaker">{speaker || kindLabel(kind)}</span>
+      {showHeader && (
+        <div className="vn-frame-head">
+          {displaySpeaker && (
+            <div className="vn-frame-name">
+              <span className="vn-frame-speaker">{displaySpeaker}</span>
+            </div>
+          )}
+          {controls}
         </div>
-        {controls}
-      </div>
+      )}
       <p className={bodyClass(kind)}>{formatText(kind, text)}</p>
     </div>
   ) : null;

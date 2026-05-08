@@ -114,7 +114,7 @@ body {
   margin-bottom: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -123,6 +123,7 @@ body {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  margin-right: auto;
 }
 
 .vn-frame-kind {
@@ -138,6 +139,7 @@ body {
   color: var(--text-primary);
   font-size: 15px;
   font-weight: 700;
+  margin-right: auto;
 }
 
 .vn-text {
@@ -302,6 +304,7 @@ body {
 .vn-frame-task .vn-frame-name {
   flex-direction: column;
   gap: 8px;
+  margin-right: 0;
   text-align: center;
 }
 

@@ -23,22 +23,74 @@ function zeroStats(delta?: Partial<Stats>): Stats {
   };
 }
 
+const recruitScenes: Record<
+  string,
+  {
+    challenge: string;
+    playerNudge: (word: string) => string;
+    accept: (word: string) => string;
+    zhao: string;
+  }
+> = {
+  'lin-xiaoman': {
+    challenge: '你说得好听，但这种镜头最会把人剪成另一个意思。',
+    playerNudge: (word) => `所以我只拍你怎么在“${word}”之后站稳，不拍别人怎么议论你。`,
+    accept: () => '我可以来。台词先发我，我要看有没有容易被截出去的句子。',
+    zhao: '她答应了，但她会盯每个词。到时候谁乱加暧昧，谁自己解释。',
+  },
+  'sun-manli': {
+    challenge: '你们这个本子，男的强吻，女的冷笑，白月光还疯了，关系挺乱啊。',
+    playerNudge: (word) => `乱才需要懂“${word}”的人，不然我们只会拍成四个人互相吼。`,
+    accept: () => '行，我去。我倒要看看顾总到底是爱人，还是单纯有病。',
+    zhao: '老板娘一旦入戏，可能会现场给顾总做情感诊断，你先有个心理准备。',
+  },
+  'wang-nana': {
+    challenge: '有镜头吗？能拍好看吗？我不想又当别人背景板。',
+    playerNudge: (word) => `这场戏要的就是你那种“${word}”的劲，镜头会追着你走。`,
+    accept: () => '那我来，但我要最显脸小的机位。',
+    zhao: '她现在信了，而且信得很具体。你最好真给她一个机位。',
+  },
+  'zhang-jiahao': {
+    challenge: '霸总我懂，但你这个顾总，是冷一点，还是危险一点？',
+    playerNudge: (word) => `不是夜场那种近，是“${word}”到让人想躲，但又躲不开。`,
+    accept: () => '懂了，少笑，多看人。这个我能试。',
+    zhao: '他说懂了。以我的经验，他懂的东西通常会带一点灯球味。',
+  },
+  'qiu-peng': {
+    challenge: '你确定找我？我现在这个状态，演顾总是不是太抽象了。',
+    playerNudge: (word) => `我要的不是像有钱，是“${word}”之后还硬撑体面的那股劲。`,
+    accept: () => '那我试试。反正我现在也没什么不能丢人的。',
+    zhao: '这句说到他心里了，但也可能说深了。深了就容易真疼。',
+  },
+  'guo-gang': {
+    challenge: '我不会演。我就站着，别让我说太多。',
+    playerNudge: (word) => `站着就够了，你身上那个“${word}”比很多台词都像豪门。`,
+    accept: () => '那行。说少点，钱日结。',
+    zhao: '他要求很合理：少说、日结、不加戏。我们尽量珍惜这种清醒。',
+  },
+};
+
 export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitResult[] } {
   return {
     recruitResults: input.selectedActors.map((actor) => {
       const persuasionLine = actor.persuasionTemplate.replace('____', actor.playerWord);
-      const actorReply = `${actor.name}停了一下，说：“行，我试试。但你别到时候又说我理解错了。”`;
+      const scene = recruitScenes[actor.id] || {
+        challenge: '你们这个听着不太靠谱。',
+        playerNudge: (word: string) => `不靠谱才需要你身上那种“${word}”的东西。`,
+        accept: () => '行，我可以来看看。',
+        zhao: '看着是答应了，至于心里怎么听的，等开机就知道。',
+      };
+      const actorReply = scene.accept(actor.playerWord);
       return {
         actorId: actor.id,
         persuasionLine,
         actorReply,
         visibleConversation: [
           { speaker: '你', text: persuasionLine },
+          { speaker: '演员', text: scene.challenge },
+          { speaker: '你', text: scene.playerNudge(actor.playerWord) },
           { speaker: '演员', text: actorReply },
-          {
-            speaker: '老赵',
-            text: `老赵把人往门口一送，小声说：“看着是答应了，至于他心里怎么听的，等开机就知道。”`,
-          },
+          { speaker: '老赵', text: scene.zhao },
         ],
         accepted: true,
         visibleHint: '你不知道他真正怎么理解了这句话，但这种理解会写进后面的片场反应。',
