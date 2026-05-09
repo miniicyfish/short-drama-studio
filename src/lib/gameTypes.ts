@@ -69,6 +69,11 @@ export interface Stats {
 
 export type ScriptBeatType = 'shot' | 'dialogue' | 'action' | 'inner' | 'turning_point';
 
+export interface ActorRewriteTarget {
+  roleName: string;
+  focus: string;
+}
+
 export interface ScriptBeat {
   beatId: string;
   beatType: ScriptBeatType;
@@ -78,6 +83,10 @@ export interface ScriptBeat {
   innerCue?: string;
   riskTag: string;
   mustKeep: boolean;
+  setPressure?: string;
+  defaultSetReaction?: string;
+  actorRewriteTargets?: ActorRewriteTarget[];
+  mustPreserve?: string;
 }
 
 export interface ScriptSkeletonAct {
@@ -97,7 +106,7 @@ export interface ScriptSkeletonAct {
 export interface ShootLine {
   lineId: string;
   sourceBeatId?: string;
-  type: 'action' | 'dialogue' | 'inner' | 'director';
+  type: 'action' | 'dialogue' | 'inner' | 'director' | 'actor_reaction';
   speaker: string;
   text: string;
   innerThought: string | null;

@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNLineKind } from '@/components/VNStage';
+import { installAudioUnlock, playBgm, playOneShot, stopBgm } from '@/lib/audioPlayer';
 import {
   actBackgrounds,
   actors,
   initialStats,
+  roleActorPortraits,
   rolePortraits,
   scriptSkeleton,
   tools,
@@ -56,6 +58,7 @@ function lineTone(signal: ShootLine['riskSignal']) {
 
 function vnKindFromLine(type?: ShootLine['type']): VNLineKind {
   if (type === 'dialogue') return 'dialogue';
+  if (type === 'actor_reaction') return 'reaction';
   if (type === 'action' || type === 'director') return 'action';
   if (type === 'inner') return 'inner';
   return 'system';
@@ -121,6 +124,12 @@ export default function PlayPage() {
   }, [router]);
 
   useEffect(() => {
+    installAudioUnlock();
+    playBgm('/audio/bgm-shooting.mp3', 0.22);
+    return () => stopBgm();
+  }, []);
+
+  useEffect(() => {
     if (!session || acts.length > 0 || loading) return;
     const generateDraft = async () => {
       setLoading('生成第一集拍摄稿');
@@ -179,6 +188,7 @@ export default function PlayPage() {
     return session.casting.find((cast) => {
       const roleNames = cast.scriptRoleName.split('/').map((item) => item.trim());
       return (
+        currentLine.speaker === cast.actorName ||
         roleNames.some((name) => currentLine.speaker.includes(name)) ||
         currentLine.speaker.includes(cast.scriptRoleName)
       );
@@ -189,8 +199,18 @@ export default function PlayPage() {
     ? actors.find((actor) => actor.id === currentSpeakerCasting.actorId)
     : null;
   const currentSpeakerPortrait = currentSpeakerCasting
-    ? rolePortraits[currentSpeakerCasting.scriptRoleId] || currentSpeakerActor?.avatar
+    ? currentLine?.type === 'actor_reaction'
+      ? currentSpeakerActor?.avatar ||
+        roleActorPortraits[currentSpeakerCasting.scriptRoleId]?.[currentSpeakerCasting.actorId] ||
+        rolePortraits[currentSpeakerCasting.scriptRoleId]
+      : roleActorPortraits[currentSpeakerCasting.scriptRoleId]?.[currentSpeakerCasting.actorId] ||
+        rolePortraits[currentSpeakerCasting.scriptRoleId] ||
+        currentSpeakerActor?.avatar
     : null;
+  const currentSpeakerDisplayName =
+    currentLine?.type === 'actor_reaction'
+      ? currentSpeakerActor?.name || currentLine?.speaker
+      : currentSpeakerCasting?.scriptRoleName || currentLine?.speaker;
 
   const currentSkeleton = useMemo(
     () => (currentAct ? scriptSkeleton.find((item) => item.actId === currentAct.actId) : null),
@@ -351,6 +371,7 @@ export default function PlayPage() {
     );
     setAccidents((current) => [...current, data.accidentTag]);
     setUsedThisAct((current) => current + 1);
+    playOneShot(toolType === 'cut' ? '/audio/sfx-thunder.wav' : '/audio/sfx-task-sparkle.mp3', 0.42);
   };
 
   const useTool = async (toolType: ToolType, rewrite?: { text: string; prompt: string }) => {
@@ -501,7 +522,7 @@ export default function PlayPage() {
       ? [
           {
             id: currentSpeakerCasting?.scriptRoleId || currentLine?.speaker || 'speaker',
-            name: currentSpeakerCasting?.scriptRoleName || currentLine?.speaker || '角色',
+            name: currentSpeakerDisplayName || '角色',
             image: currentSpeakerPortrait,
             position: 'center' as const,
             active: true,

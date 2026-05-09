@@ -20,6 +20,10 @@ const INTERNAL_PATTERNS = [
   /本局事故/,
   /futureDirectives/,
   /globalPatch/,
+  /碰撞入口/,
+  /正常反应点/,
+  /<actor\b/,
+  /<\/actor>/,
 ];
 
 function isInternalLine(line: ShootLine) {

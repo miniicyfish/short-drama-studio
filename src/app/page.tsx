@@ -1,10 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNCharacter, VNHistoryLine, VNLineKind } from '@/components/VNStage';
+import { installAudioUnlock, playBgm, playOneShot, setAudioEnabled, stopBgm } from '@/lib/audioPlayer';
 import { actors, assignCasting, initialStats, project } from '@/lib/gameData';
 import { Actor, GameSession, RecruitResult } from '@/lib/gameTypes';
 
@@ -34,7 +35,7 @@ interface VNLine {
 const zhaoCharacter: VNCharacter = {
   id: 'zhao',
   name: '老赵',
-  image: '/pixels/role-zhou-assistant.png',
+  image: '/pixels/actor-real-laozhao.png',
   position: 'right',
   active: true,
 };
@@ -96,10 +97,65 @@ function historyFromLines(lines: VNLine[], currentIndex: number): VNHistoryLine[
   }));
 }
 
+function baseLineId(id?: string) {
+  return id?.replace(/-\d+$/, '') || '';
+}
+
+function bgmForStage(stage: Stage, line?: VNLine) {
+  const id = baseLineId(line?.id);
+  if (stage === 'intro') {
+    if (id.startsWith('awards') || id.startsWith('room')) return '/audio/bgm-inner.mp3';
+    return '/audio/bgm-zhao.mp3';
+  }
+  if (stage === 'persuasion-transition' || stage === 'persuasion-input' || stage === 'persuasion-playback') {
+    return '/audio/bgm-persuasion.mp3';
+  }
+  if (stage === 'casting-task' || stage === 'casting' || stage === 'pre-shoot-rules' || stage === 'pre-shoot-task') {
+    return '/audio/bgm-zhao.mp3';
+  }
+  return null;
+}
+
+function sfxForLine(line?: VNLine) {
+  const id = baseLineId(line?.id);
+  if (id === 'awards-03') return '/audio/sfx-grand-entrance.mp3';
+  if (id === 'awards-08') return '/audio/sfx-time-travel-heavy.mp3';
+  if (id === 'room-01') return '/audio/sfx-time-travel-wind.mp3';
+  if (id === 'room-02' || id === 'room-04') return '/audio/sfx-heartbeat.mp3';
+  if (id === 'room-06') return '/audio/sfx-phone-call.wav';
+  if (id.endsWith('-meet-01')) return '/audio/sfx-memory-whoosh.mp3';
+  return null;
+}
+
+function voiceForLine(line: VNLine | undefined, activeActor?: Actor) {
+  if (!line || line.kind !== 'dialogue') return null;
+  if (line.speaker === '你' || line.speaker === '主持人') return null;
+
+  const text = line.text;
+  if (line.speaker === '老赵') {
+    if (text.includes('？') || text.includes('吗')) return '/audio/voice/male-question.mp3';
+    if (text.includes('不是') || text.includes('别') || text.includes('诈骗')) return '/audio/voice/male-awkward.mp3';
+    if (text.includes('！') || text.includes('啊')) return '/audio/voice/male-surprised.mp3';
+    return '/audio/voice/male-default.mp3';
+  }
+
+  if (!activeActor || line.speaker !== activeActor.name) return null;
+  if (activeActor.gender === 'female') {
+    if (text.includes('？') || text.includes('吗')) return '/audio/voice/female-confused.mp3';
+    if (text.includes('啊') || text.includes('！')) return '/audio/voice/female-surprised.mp3';
+    if (text.includes('不') || text.includes('算了')) return '/audio/voice/female-speechless.mp3';
+    return '/audio/voice/female-default.mp3';
+  }
+  if (text.includes('？') || text.includes('吗')) return '/audio/voice/male-question.mp3';
+  if (text.includes('啊') || text.includes('！')) return '/audio/voice/male-surprised.mp3';
+  if (text.includes('不') || text.includes('确定')) return '/audio/voice/male-awkward.mp3';
+  return '/audio/voice/male-default.mp3';
+}
+
 const rawIntroLines: VNLine[] = [
   {
     id: 'awards-01',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'narration',
@@ -107,7 +163,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-02',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'narration',
@@ -115,7 +171,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-03',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'dialogue',
@@ -124,7 +180,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-04',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'action',
@@ -132,7 +188,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-05',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'narration',
@@ -140,7 +196,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-06',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'action',
@@ -148,7 +204,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-07',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'inner',
@@ -157,7 +213,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'awards-08',
-    background: '/pixels/scene-gu-banquet-hall.png',
+    background: '/pixels/scene-awards-ceremony.png',
     title: '星芒短剧年度盛典',
     subtitle: '十年后',
     kind: 'action',
@@ -165,7 +221,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'room-01',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'narration',
@@ -173,7 +229,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'room-02',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'inner',
@@ -182,7 +238,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'room-03',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'action',
@@ -190,7 +246,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'room-04',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'inner',
@@ -199,7 +255,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'room-05',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'narration',
@@ -207,7 +263,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'room-06',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '十年前',
     kind: 'action',
@@ -215,7 +271,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'call-01',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '半夜电话',
     kind: 'dialogue',
@@ -225,7 +281,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'call-02',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '半夜电话',
     kind: 'dialogue',
@@ -234,7 +290,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'call-03',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '半夜电话',
     kind: 'dialogue',
@@ -244,7 +300,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'call-04',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '半夜电话',
     kind: 'dialogue',
@@ -253,7 +309,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'call-05',
-    background: '/pixels/scene-gu-night-exit.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '破出租屋单间',
     subtitle: '半夜电话',
     kind: 'dialogue',
@@ -263,7 +319,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-00',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'action',
@@ -272,7 +328,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-01',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -282,7 +338,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-02',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -292,7 +348,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-03',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'action',
@@ -301,7 +357,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-04',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -311,7 +367,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-05',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -321,7 +377,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-06',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -331,7 +387,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-07',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -341,7 +397,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-08',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'action',
@@ -350,7 +406,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'zhao-09',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-zhao-room-day.png',
     title: '老赵登场',
     subtitle: '被你拉来的草台搭子',
     kind: 'dialogue',
@@ -360,7 +416,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-01',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'action',
@@ -369,7 +425,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-02',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -379,7 +435,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-03',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'action',
@@ -388,7 +444,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-04',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -398,7 +454,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-05',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'action',
@@ -407,7 +463,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-06',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -417,7 +473,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-07',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -427,7 +483,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-08',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -437,7 +493,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-09',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'action',
@@ -446,7 +502,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-10',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -456,7 +512,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-11',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -466,7 +522,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-12',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-casting-calls.png',
     title: '凑班底',
     subtitle: '电话打了一圈',
     kind: 'dialogue',
@@ -476,7 +532,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-13',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-amateur-pool.png',
     title: '凑班底',
     subtitle: '能来但不好说',
     kind: 'action',
@@ -485,7 +541,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'pool-14',
-    background: '/pixels/scene-gu-side-corridor.png',
+    background: '/pixels/scene-amateur-pool.png',
     title: '凑班底',
     subtitle: '能来但不好说',
     kind: 'dialogue',
@@ -495,7 +551,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-01',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'action',
@@ -504,7 +560,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-02',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'dialogue',
@@ -514,7 +570,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-03',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'dialogue',
@@ -524,7 +580,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-04',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'dialogue',
@@ -534,7 +590,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-05',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'dialogue',
@@ -544,7 +600,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-06',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'action',
@@ -553,7 +609,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-07',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'dialogue',
@@ -563,7 +619,7 @@ const rawIntroLines: VNLine[] = [
   },
   {
     id: 'project-08',
-    background: project.cover,
+    background: '/pixels/scene-project-planning.png',
     title: project.title,
     subtitle: '第一条样片',
     kind: 'dialogue',
@@ -575,17 +631,27 @@ const rawIntroLines: VNLine[] = [
 
 const introLines = splitVNLines(rawIntroLines);
 
-function actorCharacter(actor?: Actor | null): VNCharacter[] {
+function actorCharacter(actor?: Actor | null, position: VNCharacter['position'] = 'left', active = true): VNCharacter[] {
   if (!actor) return [];
   return [
     {
       id: actor.id,
       name: actor.name,
       image: actor.avatar,
-      position: 'right',
-      active: true,
+      position,
+      active,
     },
   ];
+}
+
+function actorSceneCharacters(actor?: Actor | null, focus: 'zhao' | 'actor' | 'both' = 'both'): VNCharacter[] {
+  if (!actor) return [zhaoCharacter];
+  const actorStandee = actorCharacter(actor, 'left', focus !== 'zhao')[0];
+  const zhaoStandee = {
+    ...zhaoCharacter,
+    active: focus !== 'actor',
+  };
+  return focus === 'actor' ? [actorStandee, zhaoStandee] : [zhaoStandee, actorStandee];
 }
 
 function genderLabel(gender: Actor['gender']) {
@@ -598,6 +664,15 @@ function roleShortName(roleName?: string) {
 
 function actorMeetLines(actor: Actor, assignedRoleName?: string): VNLine[] {
   const roleName = roleShortName(assignedRoleName);
+  const background =
+    {
+      'sun-manli': '/pixels/scene-sun-wang-invite.png',
+      'wang-nana': '/pixels/scene-sun-wang-invite.png',
+      'zhang-jiahao': '/pixels/scene-zhang-invite.png',
+      'qiu-peng': '/pixels/scene-lin-qiu-invite.png',
+      'guo-gang': '/pixels/scene-guo-invite.png',
+      'lin-xiaoman': '/pixels/scene-lin-qiu-invite.png',
+    }[actor.id] || '/pixels/scene-gu-side-corridor.png';
   const target = {
     'sun-manli': ['美甲店门口', '老赵把你带到小区美甲店门口。玻璃门上贴着“今日爆款：富贵千金甲”。', '老板娘正在给客人讲前男友的八卦，听到“豪门离婚”四个字，剪刀停在半空。'],
     'wang-nana': ['美甲店后间', '王娜娜坐在补光灯前试口红，手机支架比人还稳。', '老赵说她今天本来要拍变装，听说有镜头，立刻把假睫毛贴得像要出征。'],
@@ -610,31 +685,31 @@ function actorMeetLines(actor: Actor, assignedRoleName?: string): VNLine[] {
   return splitVNLines([
     {
       id: `${actor.id}-meet-01`,
-      background: '/pixels/scene-gu-side-corridor.png',
+      background,
       title: target[0],
       subtitle: '逐个说服入组',
       kind: 'action',
       text: target[1],
-      characters: [zhaoCharacter],
+      characters: actorSceneCharacters(actor, 'both'),
     },
     {
       id: `${actor.id}-meet-02`,
-      background: '/pixels/scene-gu-side-corridor.png',
+      background,
       title: target[0],
       subtitle: '逐个说服入组',
       kind: 'action',
       text: target[2],
-      characters: actorCharacter(actor),
+      characters: actorSceneCharacters(actor, 'actor'),
     },
     {
       id: `${actor.id}-meet-03`,
-      background: '/pixels/scene-gu-side-corridor.png',
+      background,
       title: target[0],
       subtitle: '逐个说服入组',
       kind: 'dialogue',
       speaker: '老赵',
       text: '就一句，别讲太满。讲太满的人，最后都要加钱。',
-      characters: [zhaoCharacter],
+      characters: actorSceneCharacters(actor, 'zhao'),
     },
   ]);
 }
@@ -694,6 +769,8 @@ const preShootLines = splitVNLines([
 
 export default function Home() {
   const router = useRouter();
+  const [hasStarted, setHasStarted] = useState(false);
+  const [audioOn, setAudioOn] = useState(true);
   const [stage, setStage] = useState<Stage>('intro');
   const [introIndex, setIntroIndex] = useState(0);
   const [persuasionSceneIndex, setPersuasionSceneIndex] = useState(0);
@@ -701,6 +778,8 @@ export default function Home() {
   const [persuasionLineIndex, setPersuasionLineIndex] = useState(0);
   const [preShootLineIndex, setPreShootLineIndex] = useState(0);
   const [selectedActorIds, setSelectedActorIds] = useState<string[]>([]);
+  const [castingIndex, setCastingIndex] = useState(0);
+  const [castingDirection, setCastingDirection] = useState<'left' | 'right'>('right');
   const [words, setWords] = useState<Record<string, string>>({});
   const [recruitResults, setRecruitResults] = useState<RecruitResult[]>([]);
   const [autoPlay, setAutoPlay] = useState(true);
@@ -741,28 +820,43 @@ export default function Home() {
       return splitVNLines([
         ...(result.visibleConversation || []).map((line, index): VNLine => ({
           id: `${result.actorId}-${index}`,
-          background: '/pixels/scene-gu-side-corridor.png',
+          background: actorMeetLines(activeActor, activeCasting?.scriptRoleName)[0]?.background || '/pixels/scene-gu-side-corridor.png',
           title: '逐个说服入组',
           subtitle: activeActor.name,
           kind: 'dialogue',
           speaker: line.speaker === '演员' ? activeActor.name : line.speaker,
           text: line.text,
-          characters: line.speaker === '老赵' ? [zhaoCharacter] : actorCharacter(activeActor),
+          characters:
+            line.speaker === '老赵'
+              ? actorSceneCharacters(activeActor, 'zhao')
+              : line.speaker === '演员'
+                ? actorSceneCharacters(activeActor, 'actor')
+                : actorSceneCharacters(activeActor, 'both'),
         })),
         {
           id: `${result.actorId}-hint`,
-          background: '/pixels/scene-gu-side-corridor.png',
+          background: actorMeetLines(activeActor, activeCasting?.scriptRoleName)[0]?.background || '/pixels/scene-gu-side-corridor.png',
           title: '逐个说服入组',
           subtitle: activeActor.name,
           kind: 'system' as VNLineKind,
           speaker: '系统',
           text: result.visibleHint || '你不知道他真正怎么理解了这句话，但会影响后续拍摄。',
-          characters: actorCharacter(activeActor),
+          characters: actorSceneCharacters(activeActor, 'actor'),
         },
       ]);
-  }, [activeActor, recruitResults]);
+  }, [activeActor, activeCasting?.scriptRoleName, recruitResults]);
   const currentPersuasionLine = persuasionLines[persuasionLineIndex];
   const currentPreShootLine = preShootLines[preShootLineIndex];
+  const currentAudioLine =
+    stage === 'intro'
+      ? currentIntro
+      : stage === 'persuasion-transition'
+        ? currentPersuasionSceneLine
+        : stage === 'persuasion-playback'
+          ? currentPersuasionLine
+          : stage === 'pre-shoot-rules'
+            ? currentPreShootLine
+            : undefined;
 
   const toggleActor = (actorId: string) => {
     setSelectedActorIds((current) => {
@@ -852,7 +946,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!autoPlay) return;
+    if (!hasStarted || !autoPlay) return;
     if (stage === 'intro' && currentIntro) {
       const timer = window.setTimeout(nextIntro, autoDelayFor(currentIntro.text));
       return () => window.clearTimeout(timer);
@@ -875,12 +969,66 @@ export default function Home() {
     currentPreShootLine,
     currentPersuasionLine,
     currentPersuasionSceneLine,
+    hasStarted,
     introIndex,
     preShootLineIndex,
     persuasionLineIndex,
     persuasionSceneIndex,
     stage,
   ]);
+
+  useEffect(() => {
+    installAudioUnlock();
+    return () => stopBgm();
+  }, []);
+
+  useEffect(() => {
+    setAudioEnabled(audioOn);
+  }, [audioOn]);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+    const bgm = bgmForStage(stage, currentAudioLine);
+    if (bgm) {
+      playBgm(bgm, stage === 'persuasion-transition' || stage === 'persuasion-playback' ? 0.24 : 0.2);
+    }
+  }, [audioOn, currentAudioLine?.id, hasStarted, stage]);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+    if (stage === 'casting-task' || stage === 'persuasion-task' || stage === 'pre-shoot-task') {
+      playOneShot('/audio/sfx-task-sparkle.mp3', 0.45);
+      return;
+    }
+
+    const sfx = sfxForLine(currentAudioLine);
+    if (sfx) playOneShot(sfx, 0.5);
+
+    const voice = voiceForLine(currentAudioLine, activeActor);
+    if (voice) {
+      const timer = window.setTimeout(() => playOneShot(voice, 0.42), sfx ? 180 : 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeActor, currentAudioLine?.id, hasStarted, stage]);
+
+  const goToCastingCard = useCallback((direction: 'left' | 'right') => {
+    setCastingDirection(direction);
+    setCastingIndex((i) =>
+      direction === 'right'
+        ? Math.min(i + 1, actors.length - 1)
+        : Math.max(i - 1, 0)
+    );
+  }, []);
+
+  useEffect(() => {
+    if (stage !== 'casting') return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' && castingIndex < actors.length - 1) goToCastingCard('right');
+      if (e.key === 'ArrowLeft' && castingIndex > 0) goToCastingCard('left');
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [stage, castingIndex, goToCastingCard]);
 
   const playbackControls = (onNext: () => void, isLast: boolean, lastLabel: string) => (
     <div className="vn-playback-controls">
@@ -896,6 +1044,17 @@ export default function Home() {
     </div>
   );
 
+  const beginGame = () => {
+    setIntroIndex(0);
+    setStage('intro');
+    setAutoPlay(true);
+    setHasStarted(true);
+  };
+
+  const toggleAudio = () => {
+    setAudioOn((current) => !current);
+  };
+
   const start = () => {
     const session: GameSession = {
       project,
@@ -910,6 +1069,33 @@ export default function Home() {
     window.localStorage.setItem('short-drama-session', JSON.stringify(session));
     router.push('/play');
   };
+
+  if (!hasStarted) {
+    return (
+      <main className="game-cover-screen">
+        <Image
+          src="/pixels/game-cover.jpg"
+          alt="短剧退步十年，而我保持不变"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div className="game-cover-vignette" />
+        <div className="game-cover-controls">
+          <button onClick={beginGame} className="game-cover-start">
+            开始游戏
+          </button>
+          <button
+            onClick={toggleAudio}
+            className={`game-cover-audio ${audioOn ? 'is-on' : 'is-off'}`}
+          >
+            音效 {audioOn ? '开' : '关'}
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (stage === 'intro') {
     return (
@@ -930,7 +1116,7 @@ export default function Home() {
   if (stage === 'casting-task') {
     return (
       <VNStage
-        background="/pixels/scene-gu-side-corridor.png"
+        background="/pixels/scene-amateur-pool.png"
         title="片场任务"
         subtitle="开拍前"
         kind="task"
@@ -947,9 +1133,16 @@ export default function Home() {
   }
 
   if (stage === 'casting') {
+    const currentActor = actors[castingIndex];
+    const isSelected = selectedActorIds.includes(currentActor.id);
+    const genderFull =
+      !isSelected && selectedGenderCounts[currentActor.gender] >= CASTING_LIMIT[currentActor.gender];
+    const totalFull = !isSelected && selectedActorIds.length >= CASTING_LIMIT.total;
+    const isDisabled = genderFull || totalFull;
+
     return (
       <VNStage
-        background="/pixels/scene-gu-side-corridor.png"
+        background="/pixels/scene-amateur-pool.png"
         title="6 选 4 捞人"
         subtitle="老赵的素人池"
         speaker="老赵"
@@ -972,8 +1165,8 @@ export default function Home() {
           </button>
         }
         overlay={
-          <div className="mx-auto max-h-[58vh] max-w-5xl overflow-y-auto">
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="casting-carousel">
+            <div className="casting-status-bar text-xs">
               <span className="border border-border bg-bg-deep/82 px-3 py-2 text-text-secondary">
                 已选 {selectedActorIds.length}/{CASTING_LIMIT.total}
               </span>
@@ -982,51 +1175,107 @@ export default function Home() {
                   ? 'border-accent-gold text-accent-gold'
                   : 'border-border text-text-secondary'
               }`}>
-                女演员 {selectedGenderCounts.female}/{CASTING_LIMIT.female}
+                女 {selectedGenderCounts.female}/{CASTING_LIMIT.female}
               </span>
               <span className={`border px-3 py-2 ${
                 selectedGenderCounts.male === CASTING_LIMIT.male
                   ? 'border-accent-gold text-accent-gold'
                   : 'border-border text-text-secondary'
               }`}>
-                男演员 {selectedGenderCounts.male}/{CASTING_LIMIT.male}
+                男 {selectedGenderCounts.male}/{CASTING_LIMIT.male}
+              </span>
+              <span className="px-2 text-text-dim">
+                {castingIndex + 1} / {actors.length}
               </span>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-            {actors.map((actor) => {
-              const selected = selectedActorIds.includes(actor.id);
-              const genderFull =
-                !selected && selectedGenderCounts[actor.gender] >= CASTING_LIMIT[actor.gender];
-              const totalFull = !selected && selectedActorIds.length >= CASTING_LIMIT.total;
-              const disabled = genderFull || totalFull;
-              return (
-                <button
-                  key={actor.id}
-                  disabled={disabled}
-                  onClick={() => toggleActor(actor.id)}
-                  className={`border bg-bg-deep/82 p-3 text-left backdrop-blur transition-colors ${
-                    selected ? 'border-accent-gold' : 'border-border hover:border-accent-blue'
-                  } ${disabled ? 'cursor-not-allowed opacity-45' : ''}`}
-                >
-                  <div className="mb-3 flex gap-3">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden border border-border">
-                      <Image src={actor.avatar} alt={actor.name} fill sizes="64px" className="object-cover" />
+
+            <div className="casting-card-wrapper">
+              <button
+                className="casting-nav-arrow"
+                disabled={castingIndex === 0}
+                onClick={() => goToCastingCard('left')}
+                aria-label="上一个"
+              >
+                ‹
+              </button>
+
+              <div
+                key={currentActor.id}
+                className={`casting-card ${isSelected ? 'is-selected' : ''} ${isDisabled ? 'is-disabled' : ''} ${
+                  castingDirection === 'right' ? 'casting-card-animate-right' : 'casting-card-animate-left'
+                }`}
+              >
+                <div className="casting-card-top">
+                  <div className="casting-card-portrait">
+                    <Image
+                      src={currentActor.avatar}
+                      alt={currentActor.name}
+                      fill
+                      sizes="380px"
+                      className="object-contain object-bottom"
+                    />
+                  </div>
+                  <div className="casting-card-topinfo">
+                    <div className="casting-card-header">
+                      <span className="casting-card-name">{currentActor.name}</span>
+                      <span className="casting-card-gender">{genderLabel(currentActor.gender)}</span>
+                      {isSelected && <span className="casting-card-check">✓</span>}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 font-bold text-accent-gold">
-                        <span>{actor.name}</span>
-                        <span className="border border-border px-1.5 py-0.5 text-[10px] text-text-dim">
-                          {genderLabel(actor.gender)}
-                        </span>
-                      </div>
-                      <div className="text-xs text-accent-blue">{actor.label}</div>
+                    <div className="casting-card-label">{currentActor.label}</div>
+                    <div className="casting-card-hook">{currentActor.hook}</div>
+                  </div>
+                </div>
+
+                <div className="casting-card-body">
+                  <div className="casting-card-grid">
+                    <div className="casting-card-cell">
+                      <div className="casting-card-cell-title">邪门价值</div>
+                      <div className="casting-card-cell-text">{currentActor.weirdValue}</div>
+                    </div>
+                    <div className="casting-card-cell">
+                      <div className="casting-card-cell-title">不受控点</div>
+                      <div className="casting-card-cell-text">{currentActor.uncontrolledPoint}</div>
                     </div>
                   </div>
-                  <p className="mb-2 text-xs leading-5 text-text-secondary">{actor.hook}</p>
-                  <p className="text-xs leading-5 text-accent-red/85">{actor.lossDirection}</p>
+                  <div className="casting-card-danger">
+                    <span className="casting-card-cell-title">失控方向</span>
+                    <span className="casting-card-danger-text">{currentActor.lossDirection}</span>
+                  </div>
+                </div>
+
+                <button
+                  className={`casting-card-select-btn ${isSelected ? 'is-selected' : ''}`}
+                  disabled={isDisabled}
+                  onClick={() => toggleActor(currentActor.id)}
+                >
+                  {isSelected ? '✓ 已选入班底' : isDisabled ? '名额已满' : '选入班底'}
                 </button>
-              );
-            })}
+              </div>
+
+              <button
+                className="casting-nav-arrow"
+                disabled={castingIndex === actors.length - 1}
+                onClick={() => goToCastingCard('right')}
+                aria-label="下一个"
+              >
+                ›
+              </button>
+            </div>
+
+            <div className="casting-dots">
+              {actors.map((actor, index) => (
+                <button
+                  key={actor.id}
+                  className={`casting-dot ${index === castingIndex ? 'is-active' : ''} ${
+                    selectedActorIds.includes(actor.id) ? 'is-selected' : ''
+                  }`}
+                  onClick={() => {
+                    setCastingDirection(index > castingIndex ? 'right' : 'left');
+                    setCastingIndex(index);
+                  }}
+                  aria-label={actor.name}
+                />
+              ))}
             </div>
           </div>
         }
@@ -1057,7 +1306,7 @@ export default function Home() {
   if (stage === 'persuasion-task' && activeActor) {
     return (
       <VNStage
-        background="/pixels/scene-gu-side-corridor.png"
+        background="/pixels/scene-amateur-pool.png"
         title="片场任务"
         subtitle="逐个说服入组"
         kind="task"
@@ -1076,24 +1325,30 @@ export default function Home() {
   if (stage === 'persuasion-input' && activeActor) {
     return (
       <VNStage
-        background="/pixels/scene-gu-side-corridor.png"
+        background="/pixels/scene-amateur-pool.png"
         title="逐个说服入组"
         subtitle={activeActor.name}
         speaker="老赵"
         text="把话压短。这个年代，没人会为了一个太完整的梦想停下脚步。"
         kind="dialogue"
-        characters={[zhaoCharacter]}
+        characters={actorSceneCharacters(activeActor, 'zhao')}
         controls={
           <button onClick={recruit} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
             {loading ? '说服中' : '说出口'}
           </button>
         }
         overlay={
-          <div className="mx-auto max-w-3xl">
+          <div className="vn-persuasion-card">
             <div className="border border-accent-gold/35 bg-bg-deep/88 p-5 backdrop-blur">
               <div className="mb-4 flex items-center gap-3">
                 <div className="relative h-14 w-14 overflow-hidden border border-border">
-                  <Image src={activeActor.avatar} alt={activeActor.name} fill sizes="56px" className="object-cover" />
+                  <Image
+                    src={activeActor.avatar}
+                    alt={activeActor.name}
+                    fill
+                    sizes="56px"
+                    className="bg-white/90 object-contain object-bottom"
+                  />
                 </div>
                 <div>
                   <div className="font-bold text-accent-gold">{activeActor.name}</div>

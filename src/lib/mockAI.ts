@@ -172,6 +172,50 @@ function beatType(beat: ScriptBeat): ShootLine['type'] {
   return 'director';
 }
 
+function matchRoleName(fullRoleName: string, roleName: string) {
+  return fullRoleName
+    .split('/')
+    .map((item) => item.trim())
+    .some((item) => item === roleName || item.includes(roleName) || roleName.includes(item));
+}
+
+function actorForRole(input: DraftRequest, roleName: string) {
+  const cast = input.casting.find((item) => matchRoleName(item.scriptRoleName, roleName));
+  if (!cast) return null;
+  const actor = input.selectedActors.find((item) => item.id === cast.actorId);
+  return { cast, actor };
+}
+
+function actorStateForRole(input: InterventionRequest | ReviseActRequest, roleName: string) {
+  return input.actorStates.find((item) => matchRoleName(item.scriptRoleName, roleName)) || null;
+}
+
+function renderDraftReaction(input: DraftRequest, reaction: string) {
+  let firstSpeaker = '';
+  const text = reaction.replace(/<actor role="([^"]+)">.*?<\/actor>/g, (_, roleName: string) => {
+    const matched = actorForRole(input, roleName);
+    if (matched && !firstSpeaker) firstSpeaker = matched.cast.actorName;
+    return matched?.cast.actorName || `${roleName}演员`;
+  });
+  return {
+    speaker: firstSpeaker || '老赵',
+    text,
+  };
+}
+
+function renderStateReaction(input: InterventionRequest | ReviseActRequest, reaction: string) {
+  let firstSpeaker = '';
+  const text = reaction.replace(/<actor role="([^"]+)">.*?<\/actor>/g, (_, roleName: string) => {
+    const matched = actorStateForRole(input, roleName);
+    if (matched && !firstSpeaker) firstSpeaker = matched.actorName;
+    return matched?.actorName || `${roleName}演员`;
+  });
+  return {
+    speaker: firstSpeaker || '老赵',
+    text,
+  };
+}
+
 export function mockDraft(input: DraftRequest): { episodeDraft: ActDraft[] } {
   return {
     episodeDraft: input.scriptSkeleton.map((act, actIndex) => {
@@ -189,13 +233,21 @@ export function mockDraft(input: DraftRequest): { episodeDraft: ActDraft[] } {
         lines.push(line(act.actId, lines.length + 1, speaker, text, risk, type, sourceBeatId, innerThought));
       };
 
-      act.beats.forEach((beat) => {
+      act.beats.forEach((beat, beatIndex) => {
         const risk = beatRisk(beat);
-        if (beat.actionCue) {
+        const remainingBeats = act.beats.length - beatIndex - 1;
+        if (beat.actionCue && lines.length + remainingBeats + 1 < act.targetLineCount.max) {
           addLine('镜头', beat.actionCue, risk, 'action', beat.beatId, null);
         }
         addLine(beat.speaker || '镜头', beat.referenceText, risk, beatType(beat), beat.beatId, beat.innerCue || null);
-        if (beat.innerCue && beat.beatType !== 'inner') {
+        if (beat.defaultSetReaction && lines.length + remainingBeats < act.targetLineCount.max) {
+          const reaction = renderDraftReaction(input, beat.defaultSetReaction);
+          addLine(reaction.speaker, reaction.text, risk, 'actor_reaction', beat.beatId, null);
+        }
+        if (beat.setPressure && lines.length + remainingBeats < act.targetLineCount.max && beatIndex % 2 === 0) {
+          addLine('老赵', beat.setPressure, risk, 'actor_reaction', beat.beatId, null);
+        }
+        if (beat.innerCue && beat.beatType !== 'inner' && lines.length + remainingBeats < act.targetLineCount.max) {
           addLine(beat.speaker || '镜头', beat.innerCue, risk, 'inner', beat.beatId, null);
         }
       });
@@ -236,14 +288,34 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
       : `导演使用「${toolName}」截住了当前失控点。`;
   const patchedRemainingLines =
     input.remainingLines.length > 0
-      ? input.remainingLines.map((item, index) => ({
-          ...item,
-          lineId: `${input.actId}_p${String(index + 1).padStart(2, '0')}`,
-          text:
-            index === 0
-              ? `${item.text} 但这次所有人都带着刚才干预后的别扭感继续往下演。`
-              : item.text,
-        }))
+      ? [
+          ...(input.currentBeat?.defaultSetReaction
+            ? [
+                (() => {
+                  const reaction = renderStateReaction(input, input.currentBeat.defaultSetReaction || '');
+                  return {
+                    ...input.currentLine,
+                    lineId: `${input.actId}_p00`,
+                    sourceBeatId: input.currentBeat?.beatId,
+                    type: 'actor_reaction' as const,
+                    speaker: reaction.speaker,
+                    text: `${toolName}把现场节奏推歪了一点。${reaction.text}`,
+                    innerThought: null,
+                    mood: '临场改向',
+                    riskSignal: input.currentLine.riskSignal,
+                  };
+                })(),
+              ]
+            : []),
+          ...input.remainingLines.map((item, index) => ({
+            ...item,
+            lineId: `${input.actId}_p${String(index + 1).padStart(2, '0')}`,
+            text:
+              index === 0
+                ? `${item.text} 但这次所有人都带着刚才干预后的别扭感继续往下演。`
+                : item.text,
+          })),
+        ]
       : [
           line(
             input.actId,
@@ -312,7 +384,7 @@ export function mockReviseAct(input: ReviseActRequest): ReviseActResponse {
         lineId: `${input.actId}_r${String(index + 1).padStart(2, '0')}`,
         text:
           index === 0 && directive
-            ? `${item.text} 前面留下的片场事实正在改写这一幕：${directive}`
+            ? `${item.text} 上一场留下的别扭还没散，演员接这句时先看了一眼老赵，确认这次要按新的拍法继续。`
             : item.text,
       })),
       defaultOutcome: {

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { ReactNode, useState } from 'react';
 
-export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'system' | 'task';
+export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'reaction' | 'system' | 'task';
 
 export interface VNCharacter {
   id: string;
@@ -46,6 +46,7 @@ function kindLabel(kind: VNLineKind) {
     dialogue: '台词',
     action: '动作',
     inner: '内心',
+    reaction: '演员反应',
     system: '提示',
     task: '任务',
   }[kind];
@@ -57,6 +58,7 @@ function frameClass(kind: VNLineKind) {
     dialogue: 'vn-frame vn-frame-dialogue',
     action: 'vn-frame vn-frame-action',
     inner: 'vn-frame vn-frame-inner',
+    reaction: 'vn-frame vn-frame-reaction',
     system: 'vn-frame vn-frame-system',
     task: 'vn-frame vn-frame-task',
   }[kind];
@@ -68,6 +70,7 @@ function bodyClass(kind: VNLineKind) {
     dialogue: 'vn-text vn-text-dialogue',
     action: 'vn-text vn-text-action',
     inner: 'vn-text vn-text-inner',
+    reaction: 'vn-text vn-text-reaction',
     system: 'vn-text vn-text-system',
     task: 'vn-text vn-text-task',
   }[kind];
@@ -94,17 +97,23 @@ export default function VNStage({
 }: VNStageProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const frameCharacter =
-    kind === 'dialogue'
-      ? characters.find((character) => character.active !== false) || characters[0]
+    (kind === 'dialogue' || kind === 'reaction') && speaker
+      ? characters.find(
+          (character) =>
+            character.active !== false &&
+            (character.name === speaker || speaker.includes(character.name) || character.name.includes(speaker))
+        ) || null
       : null;
-  const stageCharacters = frameCharacter
-    ? characters.filter((character) => character.id !== frameCharacter.id)
-    : characters;
+  const stageCharacters =
+    (kind === 'dialogue' || kind === 'reaction') && frameCharacter
+      ? characters.filter((character) => character.id !== frameCharacter.id && character.active === false)
+      : [];
   const displaySpeaker =
     speaker ||
     (kind === 'task' ? kindLabel(kind) : undefined);
-  const displayKind = kind === 'inner' || kind === 'narration' ? kindLabel(kind) : undefined;
-  const showHeader = Boolean(displaySpeaker || displayKind);
+  const displayKind =
+    kind === 'inner' || kind === 'narration' || kind === 'reaction' ? kindLabel(kind) : undefined;
+  const showHeader = kind !== 'task';
   const controlsInFooter = kind === 'task';
   const frame = text ? (
     <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
@@ -131,7 +140,7 @@ export default function VNStage({
             src={frameCharacter.image}
             alt=""
             fill
-            sizes="(min-width: 768px) 160px, 84px"
+            sizes="(min-width: 768px) 240px, 92px"
             className="object-contain object-bottom"
           />
         </div>
@@ -204,20 +213,20 @@ export default function VNStage({
               alt={character.name}
               fill
               sizes="(min-width: 768px) 360px, 48vw"
-              className="character-standee object-cover object-top drop-shadow-2xl"
+              className="character-standee object-contain object-bottom drop-shadow-2xl"
             />
           </div>
         ))}
       </div>
 
-      {overlay && <div className="absolute inset-x-4 top-20 z-10 md:inset-x-8 md:top-24">{overlay}</div>}
+      {overlay && <div className="vn-overlay-shell">{overlay}</div>}
 
       {kind === 'task' && frame && (
         <div className="absolute inset-0 z-20 flex items-center justify-center p-4">{frame}</div>
       )}
 
       <div className={`absolute inset-x-0 bottom-0 z-10 p-4 md:p-6 ${layout === 'shooting' ? 'vn-bottom-shooting' : ''}`}>
-        <div className="mx-auto max-w-5xl">
+        <div className="vn-stage-bottom-inner">
           {children}
           {kind !== 'task' && framedDialogue}
         </div>
