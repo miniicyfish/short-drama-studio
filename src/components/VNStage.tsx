@@ -1,0 +1,240 @@
+'use client';
+
+import Image from 'next/image';
+import { ReactNode, useState } from 'react';
+
+export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'reaction' | 'system' | 'task';
+
+export interface VNCharacter {
+  id: string;
+  name: string;
+  image: string;
+  position?: 'left' | 'center' | 'right';
+  active?: boolean;
+}
+
+interface VNStageProps {
+  background: string;
+  title?: string;
+  subtitle?: string;
+  speaker?: string;
+  text?: string;
+  kind?: VNLineKind;
+  characters?: VNCharacter[];
+  children?: ReactNode;
+  overlay?: ReactNode;
+  controls?: ReactNode;
+  history?: VNHistoryLine[];
+  layout?: 'default' | 'shooting';
+  characterDisplay?: 'dialogue' | 'stage';
+}
+
+export interface VNHistoryLine {
+  speaker?: string;
+  text: string;
+  kind?: VNLineKind;
+}
+
+const positionClass = {
+  left: 'left-[4%] md:left-[9%]',
+  center: 'left-1/2 -translate-x-1/2',
+  right: 'right-[4%] md:right-[9%]',
+};
+
+function kindLabel(kind: VNLineKind) {
+  return {
+    narration: '镜头',
+    dialogue: '台词',
+    action: '动作',
+    inner: '内心',
+    reaction: '演员反应',
+    system: '提示',
+    task: '任务',
+  }[kind];
+}
+
+function frameClass(kind: VNLineKind) {
+  return {
+    narration: 'vn-frame vn-frame-narration',
+    dialogue: 'vn-frame vn-frame-dialogue',
+    action: 'vn-frame vn-frame-action',
+    inner: 'vn-frame vn-frame-inner',
+    reaction: 'vn-frame vn-frame-reaction',
+    system: 'vn-frame vn-frame-system',
+    task: 'vn-frame vn-frame-task',
+  }[kind];
+}
+
+function bodyClass(kind: VNLineKind) {
+  return {
+    narration: 'vn-text vn-text-narration',
+    dialogue: 'vn-text vn-text-dialogue',
+    action: 'vn-text vn-text-action',
+    inner: 'vn-text vn-text-inner',
+    reaction: 'vn-text vn-text-reaction',
+    system: 'vn-text vn-text-system',
+    task: 'vn-text vn-text-task',
+  }[kind];
+}
+
+function formatText(kind: VNLineKind, value: string) {
+  if (kind === 'dialogue') return `“${value}”`;
+  return value;
+}
+
+export default function VNStage({
+  background,
+  title,
+  subtitle,
+  speaker,
+  text,
+  kind = 'narration',
+  characters = [],
+  children,
+  overlay,
+  controls,
+  history = [],
+  layout = 'default',
+  characterDisplay = 'dialogue',
+}: VNStageProps) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const frameCharacter =
+    characterDisplay === 'dialogue' && (kind === 'dialogue' || kind === 'reaction') && speaker
+      ? characters.find(
+          (character) =>
+            character.active !== false &&
+            (character.name === speaker || speaker.includes(character.name) || character.name.includes(speaker))
+        ) || null
+      : null;
+  const stageCharacters =
+    characterDisplay === 'stage'
+      ? characters
+      : (kind === 'dialogue' || kind === 'reaction') && frameCharacter
+        ? characters.filter((character) => character.id !== frameCharacter.id && character.active === false)
+        : [];
+  const displaySpeaker =
+    speaker ||
+    (kind === 'task' ? kindLabel(kind) : undefined);
+  const displayKind =
+    kind === 'inner' || kind === 'narration' || kind === 'reaction' ? kindLabel(kind) : undefined;
+  const showHeader = kind !== 'task';
+  const controlsInFooter = kind === 'task';
+  const frame = text ? (
+    <div key={`${kind}-${speaker || ''}-${text}`} className={`${frameClass(kind)} animate-fade-in`}>
+      {controls && !controlsInFooter && <div className="vn-frame-controls">{controls}</div>}
+      {showHeader && (
+        <div className="vn-frame-head">
+          {(displaySpeaker || displayKind) && (
+            <div className="vn-frame-name">
+              {displayKind && <span className="vn-frame-kind">{displayKind}</span>}
+              {displaySpeaker && <span className="vn-frame-speaker">{displaySpeaker}</span>}
+            </div>
+          )}
+        </div>
+      )}
+      <p className={bodyClass(kind)}>{formatText(kind, text)}</p>
+      {controls && controlsInFooter && <div className="vn-frame-footer">{controls}</div>}
+    </div>
+  ) : null;
+  const framedDialogue =
+    frame && frameCharacter ? (
+      <div className="vn-dialogue-row">
+        <div className="vn-dialogue-portrait" aria-hidden="true">
+          <Image
+            src={frameCharacter.image}
+            alt=""
+            fill
+            sizes="(min-width: 768px) 240px, 92px"
+            className="object-contain object-bottom"
+          />
+        </div>
+        {frame}
+      </div>
+    ) : (
+      frame
+    );
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-bg-deep text-text-primary">
+      <Image
+        src={background}
+        alt={title || '场景'}
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-bg-deep/35 via-bg-deep/5 to-bg-deep/95" />
+      <div className="absolute inset-0 vn-grain" />
+
+      {title && (
+        <div className="absolute left-4 top-4 border border-border bg-bg-deep/70 px-4 py-3 backdrop-blur md:left-6 md:top-6">
+          <div className="text-xs text-accent-blue">{subtitle}</div>
+          <div className="mt-1 text-sm font-bold text-accent-gold">{title}</div>
+        </div>
+      )}
+
+      {history.length > 0 && kind !== 'task' && (
+        <div className="absolute right-4 top-4 z-30 md:right-6 md:top-6">
+          <button
+            onClick={() => setHistoryOpen((current) => !current)}
+            className="vn-history-button"
+          >
+            记录
+          </button>
+          {historyOpen && (
+            <div className="vn-history-panel">
+              <div className="mb-3 text-xs text-accent-gold">最近记录</div>
+              <div className="space-y-3">
+                {history.slice(-12).map((item, index) => (
+                  <div key={`${index}-${item.text}`} className="vn-history-line">
+                    <div className="vn-history-meta">
+                      {item.kind === 'narration' || item.kind === 'inner'
+                        ? kindLabel(item.kind)
+                        : item.speaker || '片场'}
+                    </div>
+                    <div className="vn-history-text">
+                      {item.kind === 'dialogue' ? formatText('dialogue', item.text) : item.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={`vn-character-layer ${layout === 'shooting' ? 'vn-character-layer-shooting' : ''}`}>
+        {stageCharacters.map((character) => (
+          <div
+            key={character.id}
+            className={`standee-shell absolute bottom-0 h-[68vh] w-[34vw] max-w-[320px] transition-all duration-300 ${
+              positionClass[character.position || 'center']
+            } ${character.active === false ? 'opacity-55 saturate-50' : 'opacity-100'}`}
+          >
+            <Image
+              src={character.image}
+              alt={character.name}
+              fill
+              sizes="(min-width: 768px) 360px, 48vw"
+              className="character-standee object-contain object-bottom drop-shadow-2xl"
+            />
+          </div>
+        ))}
+      </div>
+
+      {overlay && <div className={`vn-overlay-shell ${layout === 'shooting' ? 'vn-overlay-shell-shooting' : ''}`}>{overlay}</div>}
+
+      {kind === 'task' && frame && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center p-4">{frame}</div>
+      )}
+
+      <div className={`absolute inset-x-0 bottom-0 z-10 p-4 md:p-6 ${layout === 'shooting' ? 'vn-bottom-shooting' : ''}`}>
+        <div className="vn-stage-bottom-inner">
+          {children}
+          {kind !== 'task' && framedDialogue}
+        </div>
+      </div>
+    </main>
+  );
+}
