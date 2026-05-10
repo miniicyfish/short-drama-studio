@@ -1,30 +1,40 @@
 import { callAI } from '@/lib/ai';
 import { DraftRequest } from '@/lib/gameTypes';
-import { mockDraft } from '@/lib/mockAI';
+import {
+  assembleActDrafts,
+  extractDefaultReactions,
+  ReactionLine,
+  scriptSkeleton,
+} from '@/lib/gameData';
 import { buildDraftPrompt } from '@/lib/prompts';
 import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
 
 export async function POST(request: Request) {
   const body = (await request.json()) as DraftRequest;
 
+  // 用默认反应作为 fallback
+  const defaultReactions = extractDefaultReactions(body.scriptSkeleton, body.casting);
+
   if (!process.env.AI_API_KEY) {
-    const fallback = mockDraft(body);
-    return Response.json({ ...fallback, episodeDraft: sanitizeVisibleActDrafts(fallback.episodeDraft) });
+    const episodeDraft = assembleActDrafts(body.scriptSkeleton, defaultReactions);
+    return Response.json({ episodeDraft: sanitizeVisibleActDrafts(episodeDraft) });
   }
 
   try {
     const prompt = buildDraftPrompt(body);
-    const result = await callAI(prompt.system, prompt.user, [], 0.85, 22000, 60000);
-    const fallback = mockDraft(body);
-    const parsed = result.parsed as { episodeDraft?: unknown } | null;
-    const response =
-      parsed && Array.isArray(parsed.episodeDraft)
-        ? { ...parsed, episodeDraft: sanitizeVisibleActDrafts(parsed.episodeDraft as typeof fallback.episodeDraft) }
-        : { ...fallback, episodeDraft: sanitizeVisibleActDrafts(fallback.episodeDraft) };
-    return Response.json(response);
+    const result = await callAI(prompt.system, prompt.user, [], 0.85, 8000, 45000);
+    const parsed = result.parsed as { reactions?: Record<string, ReactionLine[]> } | null;
+
+    const reactions =
+      parsed?.reactions && typeof parsed.reactions === 'object'
+        ? { ...defaultReactions, ...parsed.reactions }
+        : defaultReactions;
+
+    const episodeDraft = assembleActDrafts(body.scriptSkeleton, reactions);
+    return Response.json({ episodeDraft: sanitizeVisibleActDrafts(episodeDraft) });
   } catch (error) {
     console.error('Draft error:', error);
-    const fallback = mockDraft(body);
-    return Response.json({ ...fallback, episodeDraft: sanitizeVisibleActDrafts(fallback.episodeDraft) });
+    const episodeDraft = assembleActDrafts(body.scriptSkeleton, defaultReactions);
+    return Response.json({ episodeDraft: sanitizeVisibleActDrafts(episodeDraft) });
   }
 }

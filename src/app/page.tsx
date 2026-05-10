@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNCharacter, VNHistoryLine, VNLineKind } from '@/components/VNStage';
 import { installAudioUnlock, playBgm, playOneShot, setAudioEnabled, stopBgm } from '@/lib/audioPlayer';
-import { actors, assignCasting, initialStats, project } from '@/lib/gameData';
-import { Actor, GameSession, RecruitResult } from '@/lib/gameTypes';
+import { actors, assignCasting, initialStats, project, scriptRoles } from '@/lib/gameData';
+import { Actor, Casting, GameSession, RecruitResult } from '@/lib/gameTypes';
 
 type Stage =
   | 'intro'
   | 'casting-task'
   | 'casting'
+  | 'role-assign'
   | 'persuasion-transition'
   | 'persuasion-task'
   | 'persuasion-input'
@@ -110,7 +111,7 @@ function bgmForStage(stage: Stage, line?: VNLine) {
   if (stage === 'persuasion-transition' || stage === 'persuasion-input' || stage === 'persuasion-playback') {
     return '/audio/bgm-persuasion.mp3';
   }
-  if (stage === 'casting-task' || stage === 'casting' || stage === 'pre-shoot-rules' || stage === 'pre-shoot-task') {
+  if (stage === 'casting-task' || stage === 'casting' || stage === 'role-assign' || stage === 'pre-shoot-rules' || stage === 'pre-shoot-task') {
     return '/audio/bgm-zhao.mp3';
   }
   return null;
@@ -780,6 +781,7 @@ export default function Home() {
   const [selectedActorIds, setSelectedActorIds] = useState<string[]>([]);
   const [castingIndex, setCastingIndex] = useState(0);
   const [castingDirection, setCastingDirection] = useState<'left' | 'right'>('right');
+  const [manualCasting, setManualCasting] = useState<Record<string, string>>({}); // actorId → scriptRoleId
   const [words, setWords] = useState<Record<string, string>>({});
   const [recruitResults, setRecruitResults] = useState<RecruitResult[]>([]);
   const [autoPlay, setAutoPlay] = useState(true);
@@ -801,7 +803,23 @@ export default function Home() {
     selectedActorIds.length === CASTING_LIMIT.total &&
     selectedGenderCounts.female === CASTING_LIMIT.female &&
     selectedGenderCounts.male === CASTING_LIMIT.male;
-  const casting = useMemo(() => assignCasting(selectedActors), [selectedActors]);
+  const casting: Casting[] = useMemo(() => {
+    // If manual casting is complete (4 assignments), build from that
+    const entries = Object.entries(manualCasting);
+    if (entries.length === scriptRoles.length) {
+      return entries.map(([actorId, roleId]) => {
+        const role = scriptRoles.find((r) => r.id === roleId)!;
+        const actor = actors.find((a) => a.id === actorId)!;
+        return {
+          scriptRoleId: role.id,
+          scriptRoleName: role.name,
+          actorId: actor.id,
+          actorName: actor.name,
+        };
+      });
+    }
+    return assignCasting(selectedActors);
+  }, [manualCasting, selectedActors]);
 
   const currentIntro = introLines[introIndex];
   const activeActor = selectedActors[activePersuasionActorIndex];
@@ -1153,11 +1171,12 @@ export default function Home() {
           <button
             disabled={!castingReady}
             onClick={() => {
-              setActivePersuasionActorIndex(0);
-              setPersuasionSceneIndex(0);
-              setPersuasionLineIndex(0);
-              setAutoPlay(true);
-              setStage('persuasion-transition');
+              // Pre-fill manual casting with auto-assigned defaults
+              const defaultCasting = assignCasting(selectedActors);
+              const defaults: Record<string, string> = {};
+              defaultCasting.forEach((c) => { defaults[c.actorId] = c.scriptRoleId; });
+              setManualCasting(defaults);
+              setStage('role-assign');
             }}
             className="border border-accent-gold px-4 py-2 text-xs text-accent-gold disabled:opacity-35"
           >
@@ -1276,6 +1295,99 @@ export default function Home() {
                   aria-label={actor.name}
                 />
               ))}
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
+  if (stage === 'role-assign') {
+    const femaleActors = selectedActors.filter((a) => a.gender === 'female');
+    const maleActors = selectedActors.filter((a) => a.gender === 'male');
+    const femaleRoles = scriptRoles.filter((r) => r.id === 'shen-zhiyi' || r.id === 'wen-ya');
+    const maleRoles = scriptRoles.filter((r) => r.id === 'gu-chenzhou' || r.id === 'zhou-assistant');
+    const allAssigned = Object.keys(manualCasting).length === scriptRoles.length;
+
+    const assignRole = (actorId: string, roleId: string, genderGroup: Actor[]) => {
+      setManualCasting((prev) => {
+        const next = { ...prev };
+        const sameGenderRoles = genderGroup[0]?.gender === 'female' ? femaleRoles : maleRoles;
+        const otherActor = genderGroup.find((a) => a.id !== actorId);
+        const otherRole = sameGenderRoles.find((r) => r.id !== roleId);
+        next[actorId] = roleId;
+        if (otherActor && otherRole) {
+          next[otherActor.id] = otherRole.id;
+        }
+        return next;
+      });
+    };
+
+    const renderGroup = (groupActors: Actor[], groupRoles: typeof scriptRoles) => (
+      <div className="flex flex-col gap-4">
+        {groupActors.map((actor) => {
+          const assignedRoleId = manualCasting[actor.id];
+          return (
+            <div key={actor.id} className="border border-border bg-bg-card/90 p-4">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="text-base font-bold text-text-primary">{actor.name}</span>
+                <span className="text-xs text-text-dim">{actor.label}</span>
+              </div>
+              <div className="flex gap-2">
+                {groupRoles.map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => assignRole(actor.id, role.id, groupActors)}
+                    className={`flex-1 border px-3 py-3 text-left transition-colors ${
+                      assignedRoleId === role.id
+                        ? 'border-accent-gold bg-accent-gold/15 text-accent-gold'
+                        : 'border-border text-text-secondary hover:border-text-dim'
+                    }`}
+                  >
+                    <div className="text-sm font-bold">{role.name}</div>
+                    <div className="mt-1 text-xs opacity-70">{role.function}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    return (
+      <VNStage
+        background="/pixels/scene-amateur-pool.png"
+        title="角色分配"
+        subtitle="谁演谁"
+        speaker="老赵"
+        text="班底到了，谁演谁你说了算。"
+        kind="dialogue"
+        characters={[zhaoCharacter]}
+        controls={
+          <button
+            disabled={!allAssigned}
+            onClick={() => {
+              setActivePersuasionActorIndex(0);
+              setPersuasionSceneIndex(0);
+              setPersuasionLineIndex(0);
+              setAutoPlay(true);
+              setStage('persuasion-transition');
+            }}
+            className="border border-accent-gold px-4 py-2 text-xs text-accent-gold disabled:opacity-35"
+          >
+            确认角色
+          </button>
+        }
+        overlay={
+          <div className="mx-auto flex max-w-2xl flex-col gap-5 overflow-y-auto px-4 pt-2 pb-4" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+            <div>
+              <div className="mb-2 text-xs tracking-widest text-text-dim">女演员</div>
+              {renderGroup(femaleActors, femaleRoles)}
+            </div>
+            <div>
+              <div className="mb-2 text-xs tracking-widest text-text-dim">男演员</div>
+              {renderGroup(maleActors, maleRoles)}
             </div>
           </div>
         }

@@ -9,10 +9,10 @@ import {
   RecruitResult,
   ReviseActRequest,
   ReviseActResponse,
-  ScriptBeat,
   ShootLine,
   Stats,
 } from './gameTypes';
+import { assembleActDrafts, extractDefaultReactions } from './gameData';
 
 function zeroStats(delta?: Partial<Stats>): Stats {
   return {
@@ -34,19 +34,19 @@ const recruitScenes: Record<
 > = {
   'lin-xiaoman': {
     challenge: '你说得好听，但这种镜头最会把人剪成另一个意思。',
-    playerNudge: (word) => `所以我只拍你怎么在“${word}”之后站稳，不拍别人怎么议论你。`,
+    playerNudge: (word) => `所以我只拍你怎么在"${word}"之后站稳，不拍别人怎么议论你。`,
     accept: () => '我可以来。台词先发我，我要看有没有容易被截出去的句子。',
     zhao: '她答应了，但她会盯每个词。到时候谁乱加暧昧，谁自己解释。',
   },
   'sun-manli': {
     challenge: '你们这个本子，男的强吻，女的冷笑，白月光还疯了，关系挺乱啊。',
-    playerNudge: (word) => `乱才需要懂“${word}”的人，不然我们只会拍成四个人互相吼。`,
+    playerNudge: (word) => `乱才需要懂"${word}"的人，不然我们只会拍成四个人互相吼。`,
     accept: () => '行，我去。我倒要看看顾总到底是爱人，还是单纯有病。',
     zhao: '老板娘一旦入戏，可能会现场给顾总做情感诊断，你先有个心理准备。',
   },
   'wang-nana': {
     challenge: '有镜头吗？能拍好看吗？我不想又当别人背景板。',
-    playerNudge: (word) => `这场戏要的就是你那种“${word}”的劲，镜头会追着你走。`,
+    playerNudge: (word) => `这场戏要的就是你那种"${word}"的劲，镜头会追着你走。`,
     accept: () => '那我来，但我要最显脸小的机位。',
     zhao: '她现在信了，而且信得很具体。你最好真给她一个机位。',
   },
@@ -55,7 +55,7 @@ const recruitScenes: Record<
       roleName?.includes('周特助')
         ? '助理我也能演，但他是商务助理，还是那种会替老板挡酒的助理？'
         : '霸总我懂，但你这个顾总，是冷一点，还是危险一点？',
-    playerNudge: (word) => `不是夜场那种近，是“${word}”到让人想躲，但又躲不开。`,
+    playerNudge: (word) => `不是夜场那种近，是"${word}"到让人想躲，但又躲不开。`,
     accept: () => '懂了，少笑，多看人。这个我能试。',
     zhao: (roleName) =>
       roleName?.includes('周特助')
@@ -67,13 +67,13 @@ const recruitScenes: Record<
       roleName?.includes('周特助')
         ? '你确定找我演助理？我现在看起来像比老板还需要人扶一把。'
         : '你确定找我？我现在这个状态，演顾总是不是太抽象了。',
-    playerNudge: (word) => `我要的不是像有钱，是“${word}”之后还硬撑体面的那股劲。`,
+    playerNudge: (word) => `我要的不是像有钱，是"${word}"之后还硬撑体面的那股劲。`,
     accept: () => '那我试试。反正我现在也没什么不能丢人的。',
     zhao: '这句说到他心里了，但也可能说深了。深了就容易真疼。',
   },
   'guo-gang': {
     challenge: '我不会演。我就站着，别让我说太多。',
-    playerNudge: (word) => `站着就够了，你身上那个“${word}”比很多台词都像豪门。`,
+    playerNudge: (word) => `站着就够了，你身上那个"${word}"比很多台词都像豪门。`,
     accept: () => '那行。说少点，钱日结。',
     zhao: '他要求很合理：少说、日结、不加戏。我们尽量珍惜这种清醒。',
   },
@@ -86,7 +86,7 @@ export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitRes
       const roleName = actor.assignedRole?.scriptRoleName;
       const scene = recruitScenes[actor.id] || {
         challenge: '你们这个听着不太靠谱。',
-        playerNudge: (word: string) => `不靠谱才需要你身上那种“${word}”的东西。`,
+        playerNudge: (word: string) => `不靠谱才需要你身上那种"${word}"的东西。`,
         accept: () => '行，我可以来看看。',
         zhao: '看着是答应了，至于心里怎么听的，等开机就知道。',
       };
@@ -107,15 +107,15 @@ export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitRes
         ],
         accepted: true,
         visibleHint: '你不知道他真正怎么理解了这句话，但这种理解会写进后面的片场反应。',
-        innerThought: `他/她开始把这次短剧理解成一次关于“${actor.playerWord}”的机会。`,
+        innerThought: `他/她开始把这次短剧理解成一次关于"${actor.playerWord}"的机会。`,
         mindset: {
-          description: `我来这里，是因为他们看见了我身上“${actor.playerWord}”的东西。`,
+          description: `我来这里，是因为他们看见了我身上"${actor.playerWord}"的东西。`,
           behaviorBias: `${actor.lossDirection}压力越大，这个偏向越明显。`,
           conflictTriggers: [
             actor.uncontrolledPoint,
             '被频繁打断',
             '被别人当成笑话',
-            `别人否定“${actor.playerWord}”这件事`,
+            `别人否定"${actor.playerWord}"这件事`,
           ],
           toolSensitivity: {
             cut: '会先怀疑是不是自己理解错了，也可能因此更用力。',
@@ -129,47 +129,9 @@ export function mockRecruit(input: RecruitRequest): { recruitResults: RecruitRes
   };
 }
 
-function line(
-  actId: string,
-  index: number,
-  speaker: string,
-  text: string,
-  riskSignal: ShootLine['riskSignal'] = 'medium',
-  type: ShootLine['type'] = 'dialogue',
-  sourceBeatId?: string,
-  innerThought?: string | null
-): ShootLine {
-  return {
-    lineId: `${actId}_l${String(index).padStart(2, '0')}`,
-    sourceBeatId,
-    type,
-    speaker,
-    text,
-    innerThought:
-      innerThought !== undefined
-        ? innerThought
-        : type === 'dialogue'
-          ? `${speaker}心里知道这句很不体面，但镜头已经推过来了。`
-          : null,
-    mood: riskSignal === 'critical' ? '失控' : riskSignal === 'high' ? '绷紧' : '试探',
-    riskSignal,
-  };
-}
-
-function beatRisk(beat: ScriptBeat): ShootLine['riskSignal'] {
-  if (beat.riskTag.includes('必炸') || beat.riskTag.includes('最炸')) return 'critical';
-  if (beat.riskTag.includes('越线') || beat.riskTag.includes('说不出口') || beat.riskTag.includes('长台词')) {
-    return 'high';
-  }
-  if (beat.mustKeep) return 'medium';
-  return 'low';
-}
-
-function beatType(beat: ScriptBeat): ShootLine['type'] {
-  if (beat.beatType === 'dialogue' || beat.beatType === 'turning_point') return 'dialogue';
-  if (beat.beatType === 'inner') return 'inner';
-  if (beat.beatType === 'shot' || beat.beatType === 'action') return 'action';
-  return 'director';
+export function mockDraft(input: DraftRequest): { episodeDraft: ActDraft[] } {
+  const reactions = extractDefaultReactions(input.scriptSkeleton, input.casting);
+  return { episodeDraft: assembleActDrafts(input.scriptSkeleton, reactions) };
 }
 
 function matchRoleName(fullRoleName: string, roleName: string) {
@@ -179,28 +141,8 @@ function matchRoleName(fullRoleName: string, roleName: string) {
     .some((item) => item === roleName || item.includes(roleName) || roleName.includes(item));
 }
 
-function actorForRole(input: DraftRequest, roleName: string) {
-  const cast = input.casting.find((item) => matchRoleName(item.scriptRoleName, roleName));
-  if (!cast) return null;
-  const actor = input.selectedActors.find((item) => item.id === cast.actorId);
-  return { cast, actor };
-}
-
 function actorStateForRole(input: InterventionRequest | ReviseActRequest, roleName: string) {
   return input.actorStates.find((item) => matchRoleName(item.scriptRoleName, roleName)) || null;
-}
-
-function renderDraftReaction(input: DraftRequest, reaction: string) {
-  let firstSpeaker = '';
-  const text = reaction.replace(/<actor role="([^"]+)">.*?<\/actor>/g, (_, roleName: string) => {
-    const matched = actorForRole(input, roleName);
-    if (matched && !firstSpeaker) firstSpeaker = matched.cast.actorName;
-    return matched?.cast.actorName || `${roleName}演员`;
-  });
-  return {
-    speaker: firstSpeaker || '老赵',
-    text,
-  };
 }
 
 function renderStateReaction(input: InterventionRequest | ReviseActRequest, reaction: string) {
@@ -216,62 +158,30 @@ function renderStateReaction(input: InterventionRequest | ReviseActRequest, reac
   };
 }
 
-export function mockDraft(input: DraftRequest): { episodeDraft: ActDraft[] } {
+function line(
+  actId: string,
+  index: number,
+  speaker: string,
+  text: string,
+  riskSignal: ShootLine['riskSignal'] = 'medium',
+  type: ShootLine['type'] = 'dialogue',
+  _sourceBeatId?: string,
+  innerThought?: string | null
+): ShootLine {
   return {
-    episodeDraft: input.scriptSkeleton.map((act, actIndex) => {
-      const actNo = actIndex + 1;
-      const lines: ShootLine[] = [];
-      const addLine = (
-        speaker: string,
-        text: string,
-        risk: ShootLine['riskSignal'],
-        type: ShootLine['type'],
-        sourceBeatId?: string,
-        innerThought?: string | null
-      ) => {
-        if (lines.length >= act.targetLineCount.max) return;
-        lines.push(line(act.actId, lines.length + 1, speaker, text, risk, type, sourceBeatId, innerThought));
-      };
-
-      act.beats.forEach((beat, beatIndex) => {
-        const risk = beatRisk(beat);
-        const remainingBeats = act.beats.length - beatIndex - 1;
-        if (beat.actionCue && lines.length + remainingBeats + 1 < act.targetLineCount.max) {
-          addLine('镜头', beat.actionCue, risk, 'action', beat.beatId, null);
-        }
-        addLine(beat.speaker || '镜头', beat.referenceText, risk, beatType(beat), beat.beatId, beat.innerCue || null);
-        if (beat.defaultSetReaction && lines.length + remainingBeats < act.targetLineCount.max) {
-          const reaction = renderDraftReaction(input, beat.defaultSetReaction);
-          addLine(reaction.speaker, reaction.text, risk, 'actor_reaction', beat.beatId, null);
-        }
-        if (beat.setPressure && lines.length + remainingBeats < act.targetLineCount.max && beatIndex % 2 === 0) {
-          addLine('老赵', beat.setPressure, risk, 'actor_reaction', beat.beatId, null);
-        }
-        if (beat.innerCue && beat.beatType !== 'inner' && lines.length + remainingBeats < act.targetLineCount.max) {
-          addLine(beat.speaker || '镜头', beat.innerCue, risk, 'inner', beat.beatId, null);
-        }
-      });
-
-      while (lines.length < act.targetLineCount.min) {
-        addLine(
-          '镜头',
-          `镜头没有急着切走，继续压住${act.title}里的别扭空气，让演员把这场难堪多撑一秒。`,
-          'medium',
-          'action'
-        );
-      }
-
-      return {
-        actId: act.actId,
-        title: act.title,
-        lines,
-        defaultOutcome: {
-          summary: `第${actNo}幕无人干预，${act.requiredOutcome}`,
-          statDelta: zeroStats({ buzz: 6 + actNo, dignity: -4, control: -3 }),
-          memory: `${act.title}按默认失控路线拍完：${act.requiredOutcome}`,
-        },
-      };
-    }),
+    lineId: `${actId}_l${String(index).padStart(2, '0')}`,
+    sourceBeatId: _sourceBeatId,
+    type,
+    speaker,
+    text,
+    innerThought:
+      innerThought !== undefined
+        ? innerThought
+        : type === 'dialogue'
+          ? `${speaker}心里知道这句很不体面，但镜头已经推过来了。`
+          : null,
+    mood: riskSignal === 'critical' ? '失控' : riskSignal === 'high' ? '绷紧' : '试探',
+    riskSignal,
   };
 }
 
@@ -284,7 +194,7 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
   }[input.toolType];
   const replacementText =
     input.toolType === 'rewrite' && input.selectedText
-      ? `导演把「${input.selectedText}」改成了更贴近“${input.playerRewritePrompt || '能继续拍'}”的版本。`
+      ? `导演把「${input.selectedText}」改成了更贴近"${input.playerRewritePrompt || '能继续拍'}"的版本。`
       : `导演使用「${toolName}」截住了当前失控点。`;
   const patchedRemainingLines =
     input.remainingLines.length > 0
@@ -371,28 +281,15 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
 }
 
 export function mockReviseAct(input: ReviseActRequest): ReviseActResponse {
-  const directive = input.canonLedger
-    .flatMap((entry) => entry.futureDirectives || [])
-    .slice(-2)
-    .join('；');
-  return {
-    revisedAct: {
-      ...input.originalActDraft,
-      title: `${input.originalActDraft.title}（受前场影响）`,
-      lines: input.originalActDraft.lines.map((item, index) => ({
-        ...item,
-        lineId: `${input.actId}_r${String(index + 1).padStart(2, '0')}`,
-        text:
-          index === 0 && directive
-            ? `${item.text} 上一场留下的别扭还没散，演员接这句时先看了一眼老赵，确认这次要按新的拍法继续。`
-            : item.text,
-      })),
-      defaultOutcome: {
-        ...input.originalActDraft.defaultOutcome,
-        memory: `${input.originalActDraft.title}承接前文补丁继续拍完。`,
-      },
-    },
-  };
+  const casting = input.actorStates.map((s) => ({
+    scriptRoleId: s.scriptRoleId,
+    scriptRoleName: s.scriptRoleName,
+    actorId: s.actorId,
+    actorName: s.actorName,
+  }));
+  const reactions = extractDefaultReactions([input.scriptSkeletonAct], casting);
+  const [revisedAct] = assembleActDrafts([input.scriptSkeletonAct], reactions);
+  return { revisedAct };
 }
 
 export function mockEpilogue(input: EpilogueRequest): EpilogueResponse {
