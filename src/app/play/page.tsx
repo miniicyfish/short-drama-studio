@@ -395,11 +395,13 @@ export default function PlayPage() {
       const skeleton = scriptSkeleton.find((item) => item.actId === nextAct?.actId);
       const ledger = ledgerOverride || canonLedger;
       if (!session || !nextAct || !skeleton) return;
-      const affected = ledger.some(
-        (entry) =>
+      const affected = ledger.some((entry) => {
+        if (!entry.toolType || entry.toolType === 'roll') return false;
+        return (
           (entry.affectedFutureActs || []).includes(nextAct.actId) ||
           (entry.futureDirectives && entry.futureDirectives.length > 0)
-      );
+        );
+      });
       if (!affected || revisedActs[nextAct.actId]) return;
 
       setLoading('按片场事实修订下一幕');
@@ -909,12 +911,9 @@ export default function PlayPage() {
           <div className="w-full max-w-xl border border-border bg-bg-card p-5 shadow-2xl">
             <h3 className="mb-3 text-lg font-bold text-accent-gold">改词</h3>
             <label className="mb-2 block text-xs text-text-dim">选中的剧本文字</label>
-            <textarea
-              value={selectedText}
-              onChange={(event) => setSelectedText(event.target.value)}
-              rows={3}
-              className="mb-4 w-full border border-border bg-bg-deep p-3 text-sm text-text-primary outline-none focus:border-accent-gold"
-            />
+            <div className="mb-4 min-h-20 w-full border border-border bg-bg-deep/80 p-3 text-sm leading-7 text-text-primary">
+              {selectedText}
+            </div>
             <label className="mb-2 block text-xs text-text-dim">你想怎么改</label>
             <input
               value={rewritePrompt}

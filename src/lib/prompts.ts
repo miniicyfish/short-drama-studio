@@ -162,7 +162,9 @@ export function buildInterventionPrompt(input: InterventionRequest) {
 关键原则：
 1. 工具影响当前点之后的本局拍摄事实，并写入 globalPatch，影响剩余所有幕。
 2. 当前句可能带有 currentBeat；工具必须理解它是在改变这个 beat 之后的拍法，而不是回头改整幕历史。currentBeat.referenceText 是剧中内容，currentBeat.defaultSetReaction 是演员现场反应母版。
-3. 改词工具必须使用 selectedText 和 playerRewritePrompt，生成替换后的当前句/剩余内容，并给出后续全局方向。
+3. 改词工具必须使用 selectedText 和 playerRewritePrompt，生成一段玩家可见的片场重拍过程，而不是静默替换。
+3a. 改词工具的 replacementCurrentLine 必须是 type="actor_reaction"、speaker="你"，text 写成你喊停并宣布新词，例如：停停停，刚刚那句改成：xxxxx。
+3b. 改词工具的 patchedRemainingLines 开头必须依次包含：演员/片场听到改词后的反应、原说话人重新说出改词后版本、老赵对新方向的短反馈，然后再接当前幕剩余内容。
 4. 喊卡、加鸡腿、导演示范也都必须产生 canonChange 和 futureDirectives。
 5. 不要只写局部反馈。必须说明后续哪些幕会受影响。
 6. patchedRemainingLines 只重写当前幕剩余内容；剩余幕通过 globalPatch 在进入时再修订。
@@ -288,7 +290,14 @@ ${JSON.stringify(taggedBeats, null, 2)}
 export function buildEpiloguePrompt(input: EpilogueRequest) {
   const system = `${WORLD_BRIEF}
 
-你现在负责出片结算。根据演员、入组心态、片场事实账本、事故标签和最终状态，生成这条样片最后被拍成什么怪味。`;
+你现在负责出片结算。根据演员、入组心态、片场事实账本、事故标签和最终状态，生成这条样片最后被拍成什么怪味。
+
+要求：
+1. 必须读取 canonLedger 里的真实工具干预（toolType 不为空且不是 roll），总结玩家到底改过什么。
+2. 如果玩家使用过改词（toolType="rewrite"），highlight 必须点名这次改词造成的片场事实变化，不能只写泛泛的豪门发疯。
+3. flavorTags 里至少保留 1 个工具相关标签，例如"临场改词"、"喊卡救场"、"导演示范翻车"。
+4. description 要说明这条样片是如何被玩家干预带偏的；如果没有工具干预，才写成纯默认拍摄路线。
+5. 不要输出系统字段名、canonLedger、toolType 等幕后字段。`;
 
   const user = `请生成出片结算。
 

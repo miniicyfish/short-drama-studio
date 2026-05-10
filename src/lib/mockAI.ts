@@ -158,6 +158,51 @@ function renderStateReaction(input: InterventionRequest | ReviseActRequest, reac
   };
 }
 
+function extractQuotedRewrite(prompt: string) {
+  return (
+    prompt.match(/[“"「『](.+?)[”"」』]/)?.[1]?.trim() ||
+    prompt.match(/(?:改成|改为|换成|写成|说成)[:：]?\s*(.+)$/)?.[1]?.trim() ||
+    ''
+  );
+}
+
+function rewriteCurrentText(input: InterventionRequest) {
+  const prompt = (input.playerRewritePrompt || '').trim();
+  const selectedText = (input.selectedText || input.currentLine.text).trim();
+  const directRewrite = extractQuotedRewrite(prompt);
+  if (directRewrite) {
+    return input.currentLine.text.includes(selectedText)
+      ? input.currentLine.text.replace(selectedText, directRewrite)
+      : directRewrite;
+  }
+
+  const target = prompt || '让这句更能继续拍下去';
+  if (/不要真亲|不真亲|别真亲|借位|语言压迫|别亲/.test(target)) {
+    return input.currentLine.type === 'dialogue'
+      ? '别靠这么近。你想证明什么，就当着所有人说清楚。'
+      : '导演把亲密动作撤掉，改成顾沉舟逼近半步，用停顿和眼神压住现场。';
+  }
+  if (/更狠|狠一点|更强硬|别软/.test(target)) {
+    return input.currentLine.type === 'dialogue'
+      ? '你们顾家把人逼到这一步，现在还想装作自己体面？'
+      : '镜头没有退，反而压近到她的眼神上，让这一下拒绝更硬。';
+  }
+  if (/温和|克制|别脏|干净|体面/.test(target)) {
+    return input.currentLine.type === 'dialogue'
+      ? '我可以把话说清楚，但不会陪你们把场面闹得更难看。'
+      : '导演把动作收住，只留下角色之间的距离和沉默。';
+  }
+  if (/好笑|喜剧|尴尬|土/.test(target)) {
+    return input.currentLine.type === 'dialogue'
+      ? '你们这阵仗不像豪门，像小区业委会临时加戏。'
+      : '现场停了一拍，所有人都意识到这段豪门戏突然土得很真。';
+  }
+
+  return input.currentLine.type === 'dialogue'
+    ? `${selectedText}，但这次语气按"${target}"的方向重新落下。`
+    : `导演把这一拍改成"${target}"的方向，现场重新接住当前情绪。`;
+}
+
 function line(
   actId: string,
   index: number,
@@ -193,12 +238,45 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
     demo: '导演示范',
   }[input.toolType];
   const replacementText =
-    input.toolType === 'rewrite' && input.selectedText
-      ? `导演把「${input.selectedText}」改成了更贴近"${input.playerRewritePrompt || '能继续拍'}"的版本。`
+    input.toolType === 'rewrite'
+      ? rewriteCurrentText(input)
       : `导演使用「${toolName}」截住了当前失控点。`;
+  const rewriteReactionLines =
+    input.toolType === 'rewrite'
+      ? [
+          {
+            ...input.currentLine,
+            lineId: `${input.actId}_rw01`,
+            type: 'actor_reaction' as const,
+            speaker: '片场',
+            text: `${input.currentLine.speaker}演员听到这个修改，先松了一口气，又马上重新找了一遍情绪。`,
+            innerThought: null,
+            mood: '重新接戏',
+            riskSignal: input.currentLine.riskSignal,
+          },
+          {
+            ...input.currentLine,
+            lineId: `${input.actId}_rw02`,
+            text: replacementText,
+            innerThought: null,
+            mood: '改词重拍',
+          },
+          {
+            ...input.currentLine,
+            lineId: `${input.actId}_rw03`,
+            type: 'actor_reaction' as const,
+            speaker: '老赵',
+            text: '对，就按这个方向往下走，别解释，镜头接着滚。',
+            innerThought: null,
+            mood: '片场校准',
+            riskSignal: 'medium' as const,
+          },
+        ]
+      : [];
   const patchedRemainingLines =
     input.remainingLines.length > 0
       ? [
+          ...rewriteReactionLines,
           ...(input.currentBeat?.defaultSetReaction
             ? [
                 (() => {
@@ -209,7 +287,10 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
                     sourceBeatId: input.currentBeat?.beatId,
                     type: 'actor_reaction' as const,
                     speaker: reaction.speaker,
-                    text: `${toolName}把现场节奏推歪了一点。${reaction.text}`,
+                    text:
+                      input.toolType === 'rewrite'
+                        ? `改词后现场短暂停了一下。${reaction.text}`
+                        : `${toolName}把现场节奏推歪了一点。${reaction.text}`,
                     innerThought: null,
                     mood: '临场改向',
                     riskSignal: input.currentLine.riskSignal,
@@ -222,19 +303,24 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
             lineId: `${input.actId}_p${String(index + 1).padStart(2, '0')}`,
             text:
               index === 0
-                ? `${item.text} 但这次所有人都带着刚才干预后的别扭感继续往下演。`
+                ? `${item.text} 但这次所有人都按刚才改过的拍法继续往下演。`
                 : item.text,
           })),
         ]
       : [
-          line(
-            input.actId,
-            90,
-            '镜头',
-            '这一幕被临场改了方向，但还没散，老赵在监视器后面轻轻说：能剪。',
-            'high',
-            'director'
-          ),
+          ...rewriteReactionLines,
+          ...(input.toolType === 'rewrite'
+            ? []
+            : [
+                line(
+                  input.actId,
+                  90,
+                  '镜头',
+                  '这一幕被临场改了方向，但还没散，老赵在监视器后面轻轻说：能剪。',
+                  'high',
+                  'director'
+                ),
+              ]),
         ];
 
   const statDeltaMap: Record<typeof input.toolType, Stats> = {
@@ -250,7 +336,13 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
       replacementCurrentLine: {
         ...input.currentLine,
         lineId: `${input.currentLine.lineId}_patched`,
-        text: replacementText,
+        type: input.toolType === 'rewrite' ? 'actor_reaction' : input.currentLine.type,
+        speaker: input.toolType === 'rewrite' ? '你' : input.currentLine.speaker,
+        text:
+          input.toolType === 'rewrite'
+            ? `停停停，刚刚那句改成：${replacementText}`
+            : replacementText,
+        innerThought: null,
         mood: '被改向',
       },
       patchedRemainingLines,
@@ -293,13 +385,32 @@ export function mockReviseAct(input: ReviseActRequest): ReviseActResponse {
 }
 
 export function mockEpilogue(input: EpilogueRequest): EpilogueResponse {
+  const interventionEntries = input.canonLedger.filter((entry) => entry.toolType && entry.toolType !== 'roll');
+  const lastIntervention = interventionEntries.at(-1);
+  const toolLabels = interventionEntries.map((entry) => {
+    if (entry.toolType === 'cut') return '喊卡救场';
+    if (entry.toolType === 'rewrite') return '临场改词';
+    if (entry.toolType === 'chicken') return '加鸡腿安抚';
+    if (entry.toolType === 'demo') return '导演示范';
+    return '片场改向';
+  });
+  const uniqueToolLabels = Array.from(new Set(toolLabels));
+  const accidentSummary = input.collectedAccidents.slice(0, 2).join('、') || uniqueToolLabels.slice(0, 2).join('、');
+  const interventionSummary =
+    uniqueToolLabels.length > 0
+      ? `中途被你用${uniqueToolLabels.join('、')}改过方向，`
+      : '';
+
   return {
-    sampleTitle: '顾家没稳住，片场先疯了',
-    flavorTags: ['体面崩塌', '豪门集体发病', '草台名场面'],
-    description: `这条样片最后被拍成了${input.collectedAccidents.slice(0, 2).join('、') || '顾家公开发病'}的怪味版本。演员入组心态一路影响表演，顾家越想把沈知意拖回秩序，片场越像在拆这个秩序。`,
+    sampleTitle: uniqueToolLabels.includes('临场改词') ? '改词改出新名场面' : '顾家没稳住，片场先疯了',
+    flavorTags: ['体面崩塌', ...(uniqueToolLabels.length > 0 ? uniqueToolLabels.slice(0, 2) : ['豪门集体发病']), '草台名场面'],
+    description: `这条样片最后被拍成了${accidentSummary || '顾家公开发病'}的怪味版本。${interventionSummary}演员入组心态一路影响表演，顾家越想把沈知意拖回秩序，片场越像在拆这个秩序。`,
     highlight:
-      input.canonLedger.at(-1)?.memory || '最炸的是导演没有把所有事故修掉，反而让事故变成了这条样片的气质。',
+      lastIntervention?.canonChange ||
+      lastIntervention?.memory ||
+      input.canonLedger.at(-1)?.memory ||
+      '最炸的是导演没有把所有事故修掉，反而让事故变成了这条样片的气质。',
     verdict: `最终爆相 ${input.finalStats.buzz}，体面 ${input.finalStats.dignity}。这不精致，但很像会被剪出来吵三天的短剧样片。`,
-    shareText: '顾家没稳住，片场先疯了',
+    shareText: uniqueToolLabels.includes('临场改词') ? '一句改词，把片场改疯了' : '顾家没稳住，片场先疯了',
   };
 }
