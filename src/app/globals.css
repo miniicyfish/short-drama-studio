@@ -161,6 +161,148 @@ body {
   color: var(--text-secondary);
 }
 
+.pre-shoot-briefing-screen {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+}
+
+.pre-shoot-briefing-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 32% 45%, transparent 0%, rgba(10, 14, 20, 0.18) 34%, rgba(10, 14, 20, 0.88) 100%),
+    linear-gradient(90deg, rgba(10, 14, 20, 0.9), rgba(10, 14, 20, 0.42) 48%, rgba(10, 14, 20, 0.92));
+}
+
+.pre-shoot-briefing {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(360px, 1.05fr) minmax(380px, 0.95fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 72px);
+  padding: clamp(28px, 5vw, 72px);
+}
+
+.inner-drama-cover-card {
+  position: relative;
+  border: 1px solid rgba(201, 169, 110, 0.42);
+  background: rgba(10, 14, 20, 0.56);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62);
+}
+
+.inner-drama-cover-card::before {
+  content: "剧中剧封面";
+  position: absolute;
+  left: 18px;
+  top: 14px;
+  z-index: 2;
+  border: 1px solid rgba(201, 169, 110, 0.4);
+  background: rgba(10, 14, 20, 0.72);
+  padding: 5px 9px;
+  color: var(--accent-gold);
+  font-size: 12px;
+}
+
+.inner-drama-cover {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.shooting-task-card {
+  border: 1px solid rgba(42, 53, 69, 0.95);
+  background:
+    linear-gradient(180deg, rgba(17, 25, 33, 0.94), rgba(10, 14, 20, 0.96)),
+    radial-gradient(circle at 100% 0%, rgba(201, 169, 110, 0.14), transparent 42%);
+  box-shadow: 0 24px 74px rgba(0, 0, 0, 0.54);
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.shooting-task-card h1 {
+  margin-top: 8px;
+  color: var(--accent-gold);
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.shooting-task-lead {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.shooting-task-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shooting-task-grid > div,
+.shooting-tool-brief > div {
+  border: 1px solid rgba(42, 53, 69, 0.9);
+  background: rgba(26, 35, 50, 0.66);
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.shooting-task-grid span,
+.shooting-tool-brief b {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-gold);
+  font-size: 14px;
+}
+
+.shooting-tool-brief {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shooting-task-note {
+  margin-top: 14px;
+  border-left: 2px solid rgba(74, 141, 183, 0.62);
+  background: rgba(74, 141, 183, 0.08);
+  padding: 10px 12px;
+  color: var(--accent-blue);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.pre-shoot-start-button {
+  margin-top: 22px;
+  width: 100%;
+  border: 1px solid rgba(241, 212, 146, 0.9);
+  background:
+    linear-gradient(180deg, rgba(201, 169, 110, 0.28), rgba(7, 8, 10, 0.72));
+  padding: 14px 20px;
+  color: #f1d492;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.pre-shoot-start-button:hover {
+  transform: translateY(-1px);
+  border-color: #f1d492;
+  background: rgba(201, 169, 110, 0.2);
+}
+
 .vn-frame {
   position: relative;
   overflow: hidden;
@@ -921,6 +1063,22 @@ body {
 }
 
 @media (max-width: 900px) {
+  .pre-shoot-briefing {
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 18px;
+    padding: 24px 16px;
+  }
+
+  .shooting-task-grid,
+  .shooting-tool-brief {
+    grid-template-columns: 1fr;
+  }
+
+  .shooting-task-card h1 {
+    font-size: 28px;
+  }
+
   .vn-stage-bottom-inner,
   .vn-overlay-shell {
     width: min(100%, calc(100vw - 32px));
