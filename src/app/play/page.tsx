@@ -331,9 +331,16 @@ export default function PlayPage() {
     setStats((current) => applyStats(current, impact.delta));
   }, [currentLine, loading, scoredLineIds]);
 
-  const currentBackground = currentAct
+  const isBlackoutLine =
+    currentLine?.speaker === '镜头' && currentLine.text.replace(/[。.!！?\s]/g, '') === '黑屏';
+  const currentBackground = isBlackoutLine
+    ? '__blackout__'
+    : currentAct
     ? actBackgrounds[currentAct.actId] || '/pixels/scene-gu-banquet-corridor.png'
     : '/pixels/scene-gu-banquet-corridor.png';
+  const isPreparingDraft = loading === '生成第一集拍摄稿';
+  const isGeneratingEpilogue = loading === '生成样片结算';
+  const isBlockingLoading = isPreparingDraft || isGeneratingEpilogue;
 
   const currentSpeakerCasting = useMemo(() => {
     if (!session || !currentLine || currentLine.speaker === '镜头') return null;
@@ -676,7 +683,7 @@ export default function PlayPage() {
             id: currentSpeakerCasting?.scriptRoleId || currentLine?.speaker || 'speaker',
             name: currentSpeakerDisplayName || '角色',
             image: currentSpeakerPortrait,
-            position: 'left' as const,
+            position: 'center' as const,
             active: true,
           },
         ]
@@ -821,7 +828,7 @@ export default function PlayPage() {
                   画外内心：{currentLine.innerThought}
                 </div>
               )}
-              {loading && <LoadingIndicator text={loading} />}
+              {loading && !isBlockingLoading && <LoadingIndicator text={loading} />}
               {error && <div className="play-panel border-accent-red/40 bg-accent-red/10 text-sm text-accent-red">{error}</div>}
             </div>
 
@@ -865,6 +872,24 @@ export default function PlayPage() {
           </div>
         }
       />
+
+      {isBlockingLoading && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-bg-deep/72 px-6 backdrop-blur-sm">
+          <div className="shooting-loading-card">
+            {isPreparingDraft && (
+              <>
+                <div className="pixel-text text-xs text-accent-blue">ROLLING IN</div>
+                <div className="shooting-countdown" aria-hidden="true">
+                  <span>3</span>
+                  <span>2</span>
+                  <span>1</span>
+                </div>
+              </>
+            )}
+            <LoadingIndicator text={loading} />
+          </div>
+        </div>
+      )}
 
       {rewriteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-deep/80 px-4 backdrop-blur">

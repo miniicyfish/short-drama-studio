@@ -98,6 +98,7 @@ export default function VNStage({
   characterDisplay = 'dialogue',
 }: VNStageProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const isBlackout = background === '__blackout__';
   const frameCharacter =
     characterDisplay === 'dialogue' && (kind === 'dialogue' || kind === 'reaction') && speaker
       ? characters.find(
@@ -156,16 +157,22 @@ export default function VNStage({
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg-deep text-text-primary">
-      <Image
-        src={background}
-        alt={title || '场景'}
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-bg-deep/35 via-bg-deep/5 to-bg-deep/95" />
-      <div className="absolute inset-0 vn-grain" />
+      {isBlackout ? (
+        <div className="absolute inset-0 bg-black" aria-label={title || '黑屏'} />
+      ) : (
+        <>
+          <Image
+            src={background}
+            alt={title || '场景'}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-deep/35 via-bg-deep/5 to-bg-deep/95" />
+          <div className="absolute inset-0 vn-grain" />
+        </>
+      )}
 
       {title && (
         <div className="absolute left-4 top-4 border border-border bg-bg-deep/70 px-4 py-3 backdrop-blur md:left-6 md:top-6">

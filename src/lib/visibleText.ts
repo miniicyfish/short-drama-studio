@@ -31,15 +31,41 @@ function isInternalLine(line: ShootLine) {
   return INTERNAL_PATTERNS.some((pattern) => pattern.test(line.text));
 }
 
+function splitDisplaySentences(text: string): string[] {
+  let normalized = text.replace(/\s+/g, ' ').trim();
+  if (/^[“”"'‘’]+$/.test(normalized)) return [];
+  if (/^[“"‘'].*[”"’']$/.test(normalized)) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  if (!normalized) return [];
+  const sentences = normalized.match(/[^。！？!?]+[。！？!?]+[”"’'）)]*|[^。！？!?]+$/g) || [normalized];
+  return sentences
+    .map((item) => item.trim())
+    .map((item) => item.replace(/^[“"‘']+|[”"’']+$/g, '').trim())
+    .filter((item) => item && !/^[“”"'‘’。！？!?，,、；;：:]+$/.test(item));
+}
+
+function splitVisibleLine(line: ShootLine): ShootLine[] {
+  const sentences = splitDisplaySentences(line.text);
+  if (sentences.length === 0) return [];
+  if (sentences.length <= 1) return [{ ...line, text: sentences[0] || line.text }];
+  return sentences.map((sentence, index) => ({
+    ...line,
+    lineId: index === 0 ? line.lineId : `${line.lineId}_s${index + 1}`,
+    text: sentence,
+    innerThought: index === 0 ? line.innerThought : null,
+  }));
+}
+
 export function sanitizeVisibleActDrafts(acts: ActDraft[]) {
   return acts.map((act) => ({
     ...act,
-    lines: act.lines.filter((line) => !isInternalLine(line)),
+    lines: act.lines.filter((line) => !isInternalLine(line)).flatMap(splitVisibleLine),
   }));
 }
 
 export function sanitizeVisibleLines(lines: ShootLine[]) {
-  return lines.filter((line) => !isInternalLine(line));
+  return lines.filter((line) => !isInternalLine(line)).flatMap(splitVisibleLine);
 }
 
 export function sanitizeVisibleIntervention(

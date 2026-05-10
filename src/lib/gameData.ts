@@ -1624,6 +1624,20 @@ export interface ReactionLine {
   mood: string;
 }
 
+function splitDisplaySentences(text: string): string[] {
+  let normalized = text.replace(/\s+/g, ' ').trim();
+  if (/^[“”"'‘’]+$/.test(normalized)) return [];
+  if (/^[“"‘'].*[”"’']$/.test(normalized)) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  if (!normalized) return [];
+  const sentences = normalized.match(/[^。！？!?]+[。！？!?]+[”"’'）)]*|[^。！？!?]+$/g) || [normalized];
+  return sentences
+    .map((item) => item.trim())
+    .map((item) => item.replace(/^[“"‘']+|[”"’']+$/g, '').trim())
+    .filter((item) => item && !/^[“”"'‘’。！？!?，,、；;：:]+$/.test(item));
+}
+
 /**
  * 将剧本骨架 + 个性化演员反应组装为可播放的 ActDraft[]。
  * Layer 1（剧中剧台词）来自 beat.referenceText。
@@ -1638,9 +1652,6 @@ export function assembleActDrafts(
     let lineNum = 1;
 
     for (const beat of act.beats) {
-      const lineId = `${act.actId}_l${String(lineNum).padStart(2, '0')}`;
-      lineNum++;
-
       let type: ShootLine['type'];
       let speaker = beat.speaker || '镜头';
 
@@ -1665,32 +1676,39 @@ export function assembleActDrafts(
           type = 'action';
       }
 
-      lines.push({
-        lineId,
-        sourceBeatId: beat.beatId,
-        type,
-        speaker,
-        text: beat.referenceText,
-        innerThought: beat.innerCue || null,
-        mood: beat.riskTag || '',
-        riskSignal: 'low',
-      });
+      const scriptSentences = splitDisplaySentences(beat.referenceText);
+      for (const [sentenceIndex, sentence] of scriptSentences.entries()) {
+        const lineId = `${act.actId}_l${String(lineNum).padStart(2, '0')}`;
+        lineNum++;
+        lines.push({
+          lineId,
+          sourceBeatId: beat.beatId,
+          type,
+          speaker,
+          text: sentence,
+          innerThought: sentenceIndex === 0 ? beat.innerCue || null : null,
+          mood: beat.riskTag || '',
+          riskSignal: 'low',
+        });
+      }
 
       const reactionLines = reactions[beat.beatId];
       if (reactionLines) {
         for (const reaction of reactionLines) {
-          const rLineId = `${act.actId}_l${String(lineNum).padStart(2, '0')}`;
-          lineNum++;
-          lines.push({
-            lineId: rLineId,
-            sourceBeatId: beat.beatId,
-            type: 'actor_reaction',
-            speaker: reaction.speaker,
-            text: reaction.text,
-            innerThought: null,
-            mood: reaction.mood,
-            riskSignal: 'low',
-          });
+          for (const sentence of splitDisplaySentences(reaction.text)) {
+            const rLineId = `${act.actId}_l${String(lineNum).padStart(2, '0')}`;
+            lineNum++;
+            lines.push({
+              lineId: rLineId,
+              sourceBeatId: beat.beatId,
+              type: 'actor_reaction',
+              speaker: reaction.speaker,
+              text: sentence,
+              innerThought: null,
+              mood: reaction.mood,
+              riskSignal: 'low',
+            });
+          }
         }
       }
     }
@@ -1745,9 +1763,7 @@ export function extractDefaultReactions(
 
       // Split into one-sentence-per-line for display.
       // Split after: 。！？ or after closing quotes （。"  ！"  ？"） when followed by more text.
-      const splitLines = text
-        .split(/(?<=[。！？][\u201d"]?)\s*(?=\S)/)
-        .filter((s) => s.trim());
+      const splitLines = splitDisplaySentences(text);
       const lines: ReactionLine[] = splitLines.length > 0
         ? splitLines.map((s) => ({ speaker: '片场', text: s.trim(), mood: beat.riskTag || '' }))
         : [{ speaker: '片场', text, mood: beat.riskTag || '' }];

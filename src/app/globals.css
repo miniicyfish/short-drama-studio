@@ -203,8 +203,8 @@ body {
 .vn-overlay-shell-shooting {
   left: 0;
   right: 0;
-  top: 112px;
-  bottom: 310px;
+  top: 120px;
+  bottom: 260px;
   width: auto;
   transform: none;
 }
@@ -526,34 +526,35 @@ body {
 }
 
 .vn-character-layer-shooting {
-  bottom: 170px;
-  top: 210px;
+  bottom: 168px;
+  top: 112px;
   z-index: 8;
 }
 
 .vn-character-layer-shooting .standee-shell {
-  left: clamp(30px, 4vw, 72px);
+  left: 50%;
   right: auto;
   bottom: 0;
-  width: clamp(180px, 15vw, 280px);
-  height: clamp(320px, 42vh, 520px);
+  width: clamp(300px, 25vw, 480px);
+  height: clamp(520px, 68vh, 760px);
   max-width: none;
-  transform: none;
+  translate: none;
+  transform: translateX(-50%);
 }
 
 .vn-bottom-shooting {
-  left: clamp(300px, 21vw, 430px);
-  right: clamp(28px, 4vw, 72px);
-  bottom: 22px;
-  width: auto;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  width: 100%;
   min-width: 0;
   transform: none;
   z-index: 30;
 }
 
 .vn-bottom-shooting > div {
-  width: 100%;
-  max-width: none;
+  width: min(780px, calc(100vw - 112px));
+  max-width: 100%;
 }
 
 .vn-bottom-shooting .vn-frame-dialogue,
@@ -570,26 +571,33 @@ body {
 
 .vn-bottom-shooting .vn-frame-head {
   min-height: 22px;
-  margin-bottom: 4px;
-  padding-right: 140px;
+  margin-bottom: 8px;
+  padding-right: 0;
+  justify-content: center;
+}
+
+.vn-bottom-shooting .vn-frame-name {
+  margin-inline: auto;
 }
 
 .vn-bottom-shooting .vn-frame-controls {
-  right: 12px;
-  top: 10px;
+  right: 18px;
+  top: 16px;
 }
 
 .vn-bottom-shooting .vn-text {
-  max-width: none;
-  padding-right: 100px;
-  font-size: 14px;
-  line-height: 1.55;
+  max-width: 34em;
+  margin-inline: auto;
+  padding-right: 0;
+  font-size: 18px;
+  line-height: 1.75;
+  text-align: center;
   overflow-wrap: anywhere;
 }
 
 .vn-bottom-shooting .vn-frame {
-  min-height: 78px;
-  padding: 10px 14px 12px;
+  min-height: 118px;
+  padding: 16px 28px 20px;
 }
 
 .vn-bottom-shooting .vn-frame-speaker {
@@ -723,10 +731,10 @@ body {
 
 .play-left-stack {
   position: absolute;
-  left: clamp(300px, 21vw, 430px);
+  left: clamp(24px, 3vw, 56px);
   top: 0;
   display: flex;
-  width: clamp(500px, 36vw, 640px);
+  width: clamp(420px, 31vw, 560px);
   max-width: none;
   flex-direction: column;
   gap: 8px;
@@ -738,10 +746,10 @@ body {
   top: 0;
   display: flex;
   width: clamp(280px, 22vw, 340px);
-  max-height: 270px;
+  max-height: none;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .play-sidebar .grid.grid-cols-2 {
@@ -924,6 +932,7 @@ body {
   }
 
   .vn-bottom-shooting > div {
+    width: min(100%, calc(100vw - 32px));
     max-width: 100%;
   }
 
@@ -935,6 +944,8 @@ body {
 
   .play-left-stack,
   .play-sidebar {
+    left: 0;
+    right: 0;
     width: 100%;
     max-width: none;
   }
@@ -1299,14 +1310,55 @@ body {
 }
 
 /* 加载动画 */
+@keyframes countdown-pop {
+  0%, 100% { opacity: 0.35; transform: translateY(0) scale(0.94); }
+  35% { opacity: 1; transform: translateY(-3px) scale(1.04); }
+}
+
 @keyframes dot-pulse {
   0%, 80%, 100% { opacity: 0.3; }
   40% { opacity: 1; }
 }
+
+.shooting-loading-card {
+  width: min(420px, calc(100vw - 48px));
+  border: 1px solid rgba(201, 169, 110, 0.42);
+  background:
+    linear-gradient(180deg, rgba(17, 25, 33, 0.94), rgba(10, 14, 20, 0.97)),
+    radial-gradient(circle at 50% 0%, rgba(201, 169, 110, 0.16), transparent 52%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.62);
+  padding: 22px 28px 18px;
+  text-align: center;
+}
+
+.shooting-countdown {
+  margin: 14px auto 4px;
+  display: flex;
+  width: min(220px, 100%);
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.shooting-countdown span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(201, 169, 110, 0.5);
+  background: rgba(201, 169, 110, 0.1);
+  color: var(--accent-gold);
+  font-family: "Courier New", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  animation: countdown-pop 1.2s infinite ease-in-out;
+}
+
+.shooting-countdown span:nth-child(2) { animation-delay: 0.18s; }
+.shooting-countdown span:nth-child(3) { animation-delay: 0.36s; }
 
 .loading-dots span {
   animation: dot-pulse 1.4s infinite ease-in-out;
 }
 .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
 .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
-
