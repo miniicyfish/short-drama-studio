@@ -65,6 +65,10 @@ function zeroDelta(): Stats {
   return { budget: 0, buzz: 0, dignity: 0, control: 0 };
 }
 
+function lineSeed(line: ShootLine) {
+  return Array.from(`${line.lineId}:${line.text}`).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
 function lineTone(signal: ShootLine['riskSignal']) {
   if (signal === 'critical') return 'border-accent-red/50 bg-accent-red/10';
   if (signal === 'high') return 'border-accent-gold/45 bg-accent-gold/8';
@@ -83,47 +87,56 @@ function vnKindFromLine(type?: ShootLine['type']): VNLineKind {
 function lineScoreImpact(line: ShootLine): { delta: Stats; reason: string } | null {
   const delta = zeroDelta();
   const reasons: string[] = [];
+  const seed = lineSeed(line);
+  const variant = seed % 4;
 
   if (line.riskSignal === 'medium') {
-    delta.buzz += 1;
-    delta.control -= 1;
+    delta.buzz += 1 + (variant === 0 ? 1 : 0);
+    delta.control -= variant === 1 ? 2 : 1;
     reasons.push('片场开始偏离');
   }
   if (line.riskSignal === 'high') {
-    delta.buzz += 3;
-    delta.dignity -= 2;
-    delta.control -= 3;
+    delta.budget -= variant === 0 ? 1 : 0;
+    delta.buzz += 2 + (variant % 2);
+    delta.dignity -= 1 + (variant === 2 ? 2 : 1);
+    delta.control -= 2 + (variant === 3 ? 2 : 0);
     reasons.push('高风险爆点');
   }
   if (line.riskSignal === 'critical') {
-    delta.buzz += 6;
-    delta.budget -= 2;
-    delta.dignity -= 5;
-    delta.control -= 6;
+    delta.buzz += 5 + variant;
+    delta.budget -= 2 + (variant === 1 ? 2 : 0);
+    delta.dignity -= 4 + (variant === 2 ? 2 : 0);
+    delta.control -= 5 + (variant === 3 ? 3 : 0);
     reasons.push('关键爆点失控');
   }
 
   if (line.type === 'inner' || line.innerThought) {
-    delta.buzz += 1;
-    delta.dignity -= 1;
-    delta.control -= 1;
+    delta.buzz += /不认|确认|明白|拒绝|醒/.test(line.text) ? 2 : 1;
+    delta.dignity += /清醒|拒绝|夺回/.test(line.text) ? 1 : 0;
+    delta.dignity -= /羞辱|难堪|疯|病/.test(line.text) ? 1 : 0;
+    delta.control -= /犹豫|慌|失控|疯/.test(line.text) ? 2 : 1;
     reasons.push('内心波动');
   }
 
   if (line.type === 'actor_reaction') {
-    delta.buzz += 2;
-    delta.budget -= 1;
-    delta.control -= 2;
+    delta.buzz += /笑|切片|名场面|更真|有戏|保留/.test(line.text) ? 3 : 1 + (variant % 2);
+    delta.budget -= /补拍|加钱|房东|群演|灯|摄影|收音|道具|安全线|出画/.test(line.text) ? 2 : variant === 0 ? 1 : 0;
+    delta.dignity -= /尴尬|下跪|强吻|羞辱|不体面|丢人|疯/.test(line.text) ? 2 : 0;
+    delta.control -= /接不住|卡|停顿|误会|憋笑|提醒|绊|撞|下意识/.test(line.text) ? 3 : 1;
     reasons.push('演员现场反应');
   }
 
-  if (
-    line.type === 'dialogue' &&
-    /强吻|下跪|有病|疯|离婚|顾家|白月光|外人|由不得|下贱/.test(line.text)
-  ) {
-    delta.buzz += 2;
-    delta.dignity -= 1;
-    delta.control -= 1;
+  if (line.type === 'action' || line.type === 'director') {
+    delta.budget -= /群演|灯|摄影|收音|道具|豪宅|房东|补拍|安全线|黑屏/.test(line.text) ? 1 + (variant === 2 ? 1 : 0) : 0;
+    delta.buzz += /黑屏|钩子|留在|碎|审判|灯火|红毯/.test(line.text) ? 1 + (variant === 1 ? 1 : 0) : 0;
+    delta.control -= /围观|冲|撞|碎|黑屏|彻底/.test(line.text) ? 1 : 0;
+    if (delta.budget || delta.buzz || delta.control) reasons.push('场面调度成本');
+  }
+
+  if (line.type === 'dialogue' && /强吻|下跪|有病|疯|离婚|顾家|白月光|外人|由不得|下贱|女主人|少夫人|排队/.test(line.text)) {
+    delta.buzz += /下贱|疯|强吻|女主人|排队/.test(line.text) ? 3 + (variant === 3 ? 1 : 0) : 1 + (variant % 2);
+    delta.dignity -= /下贱|下跪|强吻|羞辱|外人|女主人|少夫人/.test(line.text) ? 2 : 1;
+    delta.control -= /由不得|疯|顾家|抢|吻|跪/.test(line.text) ? 2 + (variant === 1 ? 1 : 0) : 1;
     reasons.push('爆点台词');
   }
 

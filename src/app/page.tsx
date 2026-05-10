@@ -19,6 +19,7 @@ type Stage =
   | 'persuasion-input'
   | 'persuasion-playback'
   | 'pre-shoot-rules'
+  | 'pre-shoot-cover'
   | 'pre-shoot-task'
   | 'pre-shoot';
 
@@ -960,7 +961,7 @@ export default function Home() {
       setPreShootLineIndex((current) => current + 1);
       return;
     }
-    setStage('pre-shoot-task');
+    setStage('pre-shoot-cover');
   };
 
   useEffect(() => {
@@ -1532,9 +1533,28 @@ export default function Home() {
     );
   }
 
+  if (stage === 'pre-shoot-cover') {
+    return (
+      <main className="inner-drama-cover-screen">
+        <Image
+          src="/pixels/inner-drama-cover.jpg"
+          alt="《离婚夜，霸总强吻我后，白月光也疯了》剧中剧封面"
+          fill
+          sizes="100vw"
+          className="inner-drama-cover-full"
+          priority
+        />
+        <div className="inner-drama-cover-shade" />
+        <button onClick={() => setStage('pre-shoot-task')} className="inner-drama-start-button">
+          开拍
+        </button>
+      </main>
+    );
+  }
+
   if (stage === 'pre-shoot-task') {
     return (
-      <main className="pre-shoot-briefing-screen">
+      <main className="shooting-task-screen">
         <Image
           src="/pixels/scene-gu-banquet-corridor.png"
           alt=""
@@ -1543,52 +1563,43 @@ export default function Home() {
           className="object-cover"
         />
         <div className="pre-shoot-briefing-vignette" />
-        <section className="pre-shoot-briefing">
-          <div className="inner-drama-cover-card">
-            <Image
-              src="/pixels/inner-drama-cover.svg"
-              alt="《离婚夜，霸总强吻我后，白月光也疯了》剧中剧封面"
-              width={1600}
-              height={900}
-              className="inner-drama-cover"
-              priority
-            />
-          </div>
+        <section className="shooting-task-layout">
           <div className="shooting-task-card">
             <div className="pixel-text text-xs text-accent-blue">TASK 03 / 正式开拍</div>
             <h1>拍完这支第一集样片</h1>
             <p className="shooting-task-lead">
-              片场会自动往前拍。你只需要在最要命的句子上出手，别把这个草台组管碎。
+              接下来你是片场导演。镜头会自动往前拍，你要判断什么时候放任失控，什么时候出手救场。
             </p>
-            <div className="shooting-task-grid">
-              <div>
-                <span>预算</span>
-                演员反应、关键爆点和补救都会烧钱，归零就很难继续体面收工。
+            <div className="shooting-task-sections">
+              <div className="shooting-task-section">
+                <h2>你要做什么</h2>
+                <p>拍完 9 幕第一集样片。每一句会自动播放，演员会根据入组心态产生现场反应。</p>
+                <p>你不需要每句都管，只在最影响成片方向的时刻使用工具。</p>
               </div>
-              <div>
-                <span>爆相</span>
-                越狗血越上涨，但爆相高不代表可控，可能只是更容易翻车。
+              <div className="shooting-task-section">
+                <h2>数值机制</h2>
+                <div className="shooting-task-grid">
+                  <div><span>预算</span>演员反应、补救和拖延都会烧钱。</div>
+                  <div><span>爆相</span>越狗血越上涨，但爆相高也可能更失控。</div>
+                  <div><span>体面</span>羞辱、下跪、强吻和发疯台词会扣体面。</div>
+                  <div><span>可控</span>演员越把现实身份带进戏，现场越难收住。</div>
+                </div>
               </div>
-              <div>
-                <span>体面</span>
-                下跪、强吻、羞辱和失控台词会持续扣体面。
+              <div className="shooting-task-section">
+                <h2>导演工具</h2>
+                <div className="shooting-tool-brief">
+                  <div><b>喊卡</b> 打断当前表演，重新校准这一句。</div>
+                  <div><b>改词</b> 选中当前剧本文字，输入修改方向。</div>
+                  <div><b>加鸡腿</b> 花钱安抚当前最不稳的演员。</div>
+                  <div><b>导演示范</b> 亲自示范这一段该怎么演。</div>
+                </div>
               </div>
-              <div>
-                <span>可控</span>
-                每次演员把现实身份带进戏里，现场都会更难收住。
+              <div className="shooting-task-section is-warning">
+                每幕通常只能干预 1 次，关键幕会给 2 次。不开工具时，片场会继续自动拍下去。
               </div>
             </div>
-            <div className="shooting-tool-brief">
-              <div><b>喊卡</b> 打断当前表演，重新校准这一句。</div>
-              <div><b>改词</b> 选中当前剧本文字，输入你想改的方向。</div>
-              <div><b>加鸡腿</b> 花钱安抚最不稳的演员。</div>
-              <div><b>导演示范</b> 亲自示范这段应该怎么演。</div>
-            </div>
-            <p className="shooting-task-note">
-              每幕通常只能干预 1 次，关键幕会给 2 次。不开工具时，片场会继续自动拍下去。
-            </p>
             <button onClick={start} className="pre-shoot-start-button">
-              开拍
+              进入拍摄
             </button>
           </div>
         </section>

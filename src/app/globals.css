@@ -11,6 +11,13 @@
   --accent-blue: #4a8db7;
   --accent-red: #b85c5c;
   --border: #2a3545;
+  --shoot-left-panel-w: clamp(420px, 31vw, 560px);
+  --shoot-right-panel-w: clamp(280px, 22vw, 340px);
+  --shoot-panel-x: clamp(24px, 3vw, 56px);
+  --shoot-right-x: clamp(28px, 4vw, 72px);
+  --shoot-dialogue-w: min(780px, calc(100vw - 112px));
+  --shoot-standee-w: clamp(300px, 25vw, 480px);
+  --shoot-standee-h: clamp(520px, 68vh, 760px);
 }
 
 @theme inline {
@@ -161,12 +168,53 @@ body {
   color: var(--text-secondary);
 }
 
-.pre-shoot-briefing-screen {
+.inner-drama-cover-screen,
+.shooting-task-screen {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
   background: var(--bg-deep);
   color: var(--text-primary);
+}
+
+.inner-drama-cover-full {
+  object-fit: cover;
+}
+
+.inner-drama-cover-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(10, 14, 20, 0.05) 54%, rgba(10, 14, 20, 0.62) 100%),
+    radial-gradient(circle at 50% 50%, transparent 0%, transparent 54%, rgba(0, 0, 0, 0.38) 100%);
+}
+
+.inner-drama-start-button {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(34px, 8vh, 78px);
+  z-index: 2;
+  min-width: 220px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(241, 212, 146, 0.9);
+  background:
+    linear-gradient(180deg, rgba(201, 169, 110, 0.34), rgba(7, 8, 10, 0.84));
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.66);
+  padding: 15px 28px;
+  color: #f1d492;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.inner-drama-start-button:hover {
+  transform: translateX(-50%) translateY(-1px);
+  border-color: #f1d492;
+  background: rgba(201, 169, 110, 0.24);
 }
 
 .pre-shoot-briefing-vignette {
@@ -177,44 +225,18 @@ body {
     linear-gradient(90deg, rgba(10, 14, 20, 0.9), rgba(10, 14, 20, 0.42) 48%, rgba(10, 14, 20, 0.92));
 }
 
-.pre-shoot-briefing {
+.shooting-task-layout {
   position: relative;
   z-index: 1;
-  display: grid;
+  display: flex;
   min-height: 100vh;
-  grid-template-columns: minmax(360px, 1.05fr) minmax(380px, 0.95fr);
   align-items: center;
-  gap: clamp(24px, 4vw, 72px);
+  justify-content: center;
   padding: clamp(28px, 5vw, 72px);
 }
 
-.inner-drama-cover-card {
-  position: relative;
-  border: 1px solid rgba(201, 169, 110, 0.42);
-  background: rgba(10, 14, 20, 0.56);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62);
-}
-
-.inner-drama-cover-card::before {
-  content: "剧中剧封面";
-  position: absolute;
-  left: 18px;
-  top: 14px;
-  z-index: 2;
-  border: 1px solid rgba(201, 169, 110, 0.4);
-  background: rgba(10, 14, 20, 0.72);
-  padding: 5px 9px;
-  color: var(--accent-gold);
-  font-size: 12px;
-}
-
-.inner-drama-cover {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
 .shooting-task-card {
+  width: min(980px, calc(100vw - 48px));
   border: 1px solid rgba(42, 53, 69, 0.95);
   background:
     linear-gradient(180deg, rgba(17, 25, 33, 0.94), rgba(10, 14, 20, 0.96)),
@@ -238,8 +260,37 @@ body {
   line-height: 1.8;
 }
 
-.shooting-task-grid {
+.shooting-task-sections {
   margin-top: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.shooting-task-section {
+  border: 1px solid rgba(42, 53, 69, 0.92);
+  background: rgba(10, 14, 20, 0.38);
+  padding: 16px;
+}
+
+.shooting-task-section h2 {
+  margin-bottom: 10px;
+  color: var(--accent-gold);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.shooting-task-section p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.shooting-task-section p + p {
+  margin-top: 6px;
+}
+
+.shooting-task-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -264,17 +315,14 @@ body {
 }
 
 .shooting-tool-brief {
-  margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.shooting-task-note {
-  margin-top: 14px;
+.shooting-task-section.is-warning {
   border-left: 2px solid rgba(74, 141, 183, 0.62);
   background: rgba(74, 141, 183, 0.08);
-  padding: 10px 12px;
   color: var(--accent-blue);
   font-size: 13px;
   line-height: 1.65;
@@ -677,11 +725,11 @@ body {
   left: 50%;
   right: auto;
   bottom: 0;
-  width: clamp(300px, 25vw, 480px);
-  height: clamp(520px, 68vh, 760px);
+  width: var(--shoot-standee-w);
+  height: var(--shoot-standee-h);
   max-width: none;
   translate: none;
-  transform: translateX(-50%);
+  transform: translateX(calc(-50% + var(--standee-shift-x, 0px)));
 }
 
 .vn-bottom-shooting {
@@ -695,7 +743,7 @@ body {
 }
 
 .vn-bottom-shooting > div {
-  width: min(780px, calc(100vw - 112px));
+  width: var(--shoot-dialogue-w);
   max-width: 100%;
 }
 
@@ -873,10 +921,10 @@ body {
 
 .play-left-stack {
   position: absolute;
-  left: clamp(24px, 3vw, 56px);
+  left: var(--shoot-panel-x);
   top: 0;
   display: flex;
-  width: clamp(420px, 31vw, 560px);
+  width: var(--shoot-left-panel-w);
   max-width: none;
   flex-direction: column;
   gap: 8px;
@@ -884,10 +932,10 @@ body {
 
 .play-sidebar {
   position: absolute;
-  right: clamp(28px, 4vw, 72px);
+  right: var(--shoot-right-x);
   top: 0;
   display: flex;
-  width: clamp(280px, 22vw, 340px);
+  width: var(--shoot-right-panel-w);
   max-height: none;
   flex-direction: column;
   gap: 8px;
@@ -1063,10 +1111,12 @@ body {
 }
 
 @media (max-width: 900px) {
-  .pre-shoot-briefing {
-    grid-template-columns: 1fr;
-    align-content: start;
-    gap: 18px;
+  :root {
+    --shoot-dialogue-w: min(100%, calc(100vw - 32px));
+  }
+
+  .shooting-task-layout {
+    align-items: flex-start;
     padding: 24px 16px;
   }
 
@@ -1090,7 +1140,6 @@ body {
   }
 
   .vn-bottom-shooting > div {
-    width: min(100%, calc(100vw - 32px));
     max-width: 100%;
   }
 

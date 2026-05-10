@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ReactNode, useState } from 'react';
+import { CSSProperties, ReactNode, useState } from 'react';
 
 export type VNLineKind = 'narration' | 'dialogue' | 'action' | 'inner' | 'reaction' | 'system' | 'task';
 
@@ -80,6 +80,13 @@ function bodyClass(kind: VNLineKind) {
 function formatText(kind: VNLineKind, value: string) {
   if (kind === 'dialogue') return `“${value}”`;
   return value;
+}
+
+function standeeVisualShift(image: string) {
+  if (image.includes('role-zhou') || image.includes('guo-gang')) return '10px';
+  if (image.includes('zhang-jiahao') || image.includes('role-gu-zhang')) return '-8px';
+  if (image.includes('qiu-peng') || image.includes('role-gu-qiu')) return '6px';
+  return '0px';
 }
 
 export default function VNStage({
@@ -218,6 +225,11 @@ export default function VNStage({
             className={`standee-shell absolute bottom-0 h-[68vh] w-[34vw] max-w-[320px] transition-all duration-300 ${
               positionClass[character.position || 'center']
             } ${character.active === false ? 'opacity-55 saturate-50' : 'opacity-100'}`}
+            style={
+              layout === 'shooting'
+                ? ({ '--standee-shift-x': standeeVisualShift(character.image) } as CSSProperties)
+                : undefined
+            }
           >
             <Image
               src={character.image}
