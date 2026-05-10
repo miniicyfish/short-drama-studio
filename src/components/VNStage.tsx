@@ -26,6 +26,7 @@ interface VNStageProps {
   controls?: ReactNode;
   history?: VNHistoryLine[];
   layout?: 'default' | 'shooting';
+  characterDisplay?: 'dialogue' | 'stage';
 }
 
 export interface VNHistoryLine {
@@ -94,10 +95,11 @@ export default function VNStage({
   controls,
   history = [],
   layout = 'default',
+  characterDisplay = 'dialogue',
 }: VNStageProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const frameCharacter =
-    (kind === 'dialogue' || kind === 'reaction') && speaker
+    characterDisplay === 'dialogue' && (kind === 'dialogue' || kind === 'reaction') && speaker
       ? characters.find(
           (character) =>
             character.active !== false &&
@@ -105,9 +107,11 @@ export default function VNStage({
         ) || null
       : null;
   const stageCharacters =
-    (kind === 'dialogue' || kind === 'reaction') && frameCharacter
-      ? characters.filter((character) => character.id !== frameCharacter.id && character.active === false)
-      : [];
+    characterDisplay === 'stage'
+      ? characters
+      : (kind === 'dialogue' || kind === 'reaction') && frameCharacter
+        ? characters.filter((character) => character.id !== frameCharacter.id && character.active === false)
+        : [];
   const displaySpeaker =
     speaker ||
     (kind === 'task' ? kindLabel(kind) : undefined);
@@ -200,7 +204,7 @@ export default function VNStage({
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-28 top-16 pointer-events-none">
+      <div className={`vn-character-layer ${layout === 'shooting' ? 'vn-character-layer-shooting' : ''}`}>
         {stageCharacters.map((character) => (
           <div
             key={character.id}
@@ -219,7 +223,7 @@ export default function VNStage({
         ))}
       </div>
 
-      {overlay && <div className="vn-overlay-shell">{overlay}</div>}
+      {overlay && <div className={`vn-overlay-shell ${layout === 'shooting' ? 'vn-overlay-shell-shooting' : ''}`}>{overlay}</div>}
 
       {kind === 'task' && frame && (
         <div className="absolute inset-0 z-20 flex items-center justify-center p-4">{frame}</div>

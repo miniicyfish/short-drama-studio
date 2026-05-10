@@ -651,7 +651,7 @@ function actorSceneCharacters(actor?: Actor | null, focus: 'zhao' | 'actor' | 'b
     ...zhaoCharacter,
     active: focus !== 'actor',
   };
-  return focus === 'actor' ? [actorStandee, zhaoStandee] : [zhaoStandee, actorStandee];
+  return [actorStandee, zhaoStandee];
 }
 
 function genderLabel(gender: Actor['gender']) {
@@ -1293,6 +1293,7 @@ export default function Home() {
         text={currentPersuasionSceneLine.text}
         kind={currentPersuasionSceneLine.kind}
         characters={currentPersuasionSceneLine.characters}
+        characterDisplay="stage"
         history={historyFromLines(persuasionSceneLines, persuasionSceneIndex)}
         controls={playbackControls(
           nextPersuasionSceneLine,
@@ -1313,6 +1314,7 @@ export default function Home() {
         speaker={`任务 02｜说服 ${activeActor.name}`}
         text={`目标：用一句话把${activeActor.name}拉进组，预定角色：${activeCasting?.scriptRoleName || '待分配'}。\n方式：只填一个词，让说辞击中他/她最在意的地方。\n风险：你看不到真实心态，但它会写进后续拍摄。`}
         characters={actorCharacter(activeActor)}
+        characterDisplay="stage"
         controls={
           <button onClick={() => setStage('persuasion-input')} className="vn-control-button">
             去说服
@@ -1332,6 +1334,7 @@ export default function Home() {
         text="把话压短。这个年代，没人会为了一个太完整的梦想停下脚步。"
         kind="dialogue"
         characters={actorSceneCharacters(activeActor, 'zhao')}
+        characterDisplay="stage"
         controls={
           <button onClick={recruit} className="border border-accent-gold px-4 py-2 text-xs text-accent-gold">
             {loading ? '说服中' : '说出口'}
@@ -1390,6 +1393,7 @@ export default function Home() {
         text={currentPersuasionLine.text}
         kind={currentPersuasionLine.kind}
         characters={currentPersuasionLine.characters}
+        characterDisplay="stage"
         history={historyFromLines(persuasionLines, persuasionLineIndex)}
         controls={playbackControls(nextPersuasionLine, persuasionLineIndex >= persuasionLines.length - 1, '去片场')}
       />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNLineKind } from '@/components/VNStage';
@@ -49,6 +49,22 @@ function statLabel(key: keyof Stats) {
   }[key];
 }
 
+function formatStatDelta(key: keyof Stats, value: number) {
+  if (value === 0) return null;
+  return `${statLabel(key)} ${value > 0 ? '+' : ''}${value}`;
+}
+
+function scoreDeltaLabels(delta?: Stats) {
+  if (!delta) return [];
+  return (Object.keys(delta) as Array<keyof Stats>)
+    .map((key) => formatStatDelta(key, delta[key]))
+    .filter((item): item is string => Boolean(item));
+}
+
+function zeroDelta(): Stats {
+  return { budget: 0, buzz: 0, dignity: 0, control: 0 };
+}
+
 function lineTone(signal: ShootLine['riskSignal']) {
   if (signal === 'critical') return 'border-accent-red/50 bg-accent-red/10';
   if (signal === 'high') return 'border-accent-gold/45 bg-accent-gold/8';
@@ -62,6 +78,88 @@ function vnKindFromLine(type?: ShootLine['type']): VNLineKind {
   if (type === 'action' || type === 'director') return 'action';
   if (type === 'inner') return 'inner';
   return 'system';
+}
+
+function lineScoreImpact(line: ShootLine): { delta: Stats; reason: string } | null {
+  const delta = zeroDelta();
+  const reasons: string[] = [];
+
+  if (line.riskSignal === 'medium') {
+    delta.buzz += 1;
+    delta.control -= 1;
+    reasons.push('片场开始偏离');
+  }
+  if (line.riskSignal === 'high') {
+    delta.buzz += 3;
+    delta.dignity -= 2;
+    delta.control -= 3;
+    reasons.push('高风险爆点');
+  }
+  if (line.riskSignal === 'critical') {
+    delta.buzz += 6;
+    delta.budget -= 2;
+    delta.dignity -= 5;
+    delta.control -= 6;
+    reasons.push('关键爆点失控');
+  }
+
+  if (line.type === 'inner' || line.innerThought) {
+    delta.buzz += 1;
+    delta.dignity -= 1;
+    delta.control -= 1;
+    reasons.push('内心波动');
+  }
+
+  if (line.type === 'actor_reaction') {
+    delta.buzz += 2;
+    delta.budget -= 1;
+    delta.control -= 2;
+    reasons.push('演员现场反应');
+  }
+
+  if (
+    line.type === 'dialogue' &&
+    /强吻|下跪|有病|疯|离婚|顾家|白月光|外人|由不得|下贱/.test(line.text)
+  ) {
+    delta.buzz += 2;
+    delta.dignity -= 1;
+    delta.control -= 1;
+    reasons.push('爆点台词');
+  }
+
+  if (!delta.budget && !delta.buzz && !delta.dignity && !delta.control) return null;
+
+  return {
+    delta,
+    reason: reasons.slice(0, 2).join(' / '),
+  };
+}
+
+function progressLineType(type: ShootLine['type']) {
+  return {
+    action: '场面',
+    dialogue: '台词',
+    inner: '内心',
+    director: '场面',
+    actor_reaction: '反应',
+  }[type];
+}
+
+function progressLineSpeaker(line: ShootLine) {
+  if (line.type === 'action' || line.type === 'director' || line.type === 'inner') return '镜头';
+  return line.speaker;
+}
+
+function ScoreDeltaBadges({ delta }: { delta?: Stats }) {
+  const labels = scoreDeltaLabels(delta);
+  if (labels.length === 0) return null;
+  return (
+    <span className="play-score-badges">
+      {labels.map((label) => (
+        <span key={label}>{label}</span>
+      ))}
+    </span>
+  );
 }
 
 export default function PlayPage() {
@@ -85,6 +183,8 @@ export default function PlayPage() {
   const [epilogue, setEpilogue] = useState<EpilogueResponse | null>(null);
   const [autoMode, setAutoMode] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [scoredLineIds, setScoredLineIds] = useState<string[]>([]);
+  const progressListRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const raw = window.localStorage.getItem('short-drama-session');
@@ -178,6 +278,58 @@ export default function PlayPage() {
   const interventionLimit = actIndex === 1 || actIndex === 5 || actIndex === 7 ? 2 : 1;
   const canIntervene = Boolean(currentLine) && usedThisAct < interventionLimit && !loading;
   const historyLines = currentAct ? currentAct.lines.slice(Math.max(0, lineIndex - 6), lineIndex + 1) : [];
+  const shootingProgressRows = useMemo(() => {
+    if (!currentAct) return [];
+    const rows: Array<{
+      id: string;
+      scriptLine: ShootLine | null;
+      reactions: ShootLine[];
+      active: boolean;
+    }> = [];
+    currentAct.lines.slice(0, lineIndex + 1).forEach((line) => {
+      if (line.type === 'actor_reaction') {
+        const target =
+          rows.findLast((row) => row.scriptLine?.sourceBeatId && row.scriptLine.sourceBeatId === line.sourceBeatId) ||
+          rows.at(-1);
+        if (target) {
+          target.reactions.push(line);
+          if (line.lineId === currentLine?.lineId) target.active = true;
+          return;
+        }
+        rows.push({
+          id: line.lineId,
+          scriptLine: null,
+          reactions: [line],
+          active: line.lineId === currentLine?.lineId,
+        });
+        return;
+      }
+      rows.push({
+        id: line.lineId,
+        scriptLine: line,
+        reactions: [],
+        active: line.lineId === currentLine?.lineId,
+      });
+    });
+    return rows.slice(-7);
+  }, [currentAct, currentLine?.lineId, lineIndex]);
+
+  useEffect(() => {
+    const progressList = progressListRef.current;
+    if (!progressList) return;
+    progressList.scrollTo({
+      top: progressList.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [shootingProgressRows]);
+
+  useEffect(() => {
+    if (!currentLine || loading || scoredLineIds.includes(currentLine.lineId)) return;
+    const impact = lineScoreImpact(currentLine);
+    setScoredLineIds((current) => [...current, currentLine.lineId]);
+    if (!impact) return;
+    setStats((current) => applyStats(current, impact.delta));
+  }, [currentLine, loading, scoredLineIds]);
 
   const currentBackground = currentAct
     ? actBackgrounds[currentAct.actId] || '/pixels/scene-gu-banquet-corridor.png'
@@ -524,7 +676,7 @@ export default function PlayPage() {
             id: currentSpeakerCasting?.scriptRoleId || currentLine?.speaker || 'speaker',
             name: currentSpeakerDisplayName || '角色',
             image: currentSpeakerPortrait,
-            position: 'center' as const,
+            position: 'left' as const,
             active: true,
           },
         ]
@@ -541,6 +693,7 @@ export default function PlayPage() {
         kind={vnKindFromLine(currentLine?.type)}
         characters={playCharacters}
         layout="shooting"
+        characterDisplay="stage"
         controls={
           <div className="flex items-center gap-2">
             <button
@@ -586,12 +739,60 @@ export default function PlayPage() {
         overlay={
           <div className="play-hud">
             <div className="play-left-stack">
-              <div className="play-panel">
-                <div className="mb-1 text-xs text-accent-blue">场记板</div>
-                <p>{currentAct?.title || '正在准备片场。'}</p>
-                <p className="mt-2 text-xs text-text-dim">
-                  本幕干预 {usedThisAct}/{interventionLimit} · 片场每一秒都在烧钱
-                </p>
+              <div className="play-panel play-status-panel">
+                <div className="mb-3 text-sm font-bold text-accent-gold">片场状态</div>
+                <div className="grid grid-cols-4 gap-2">
+                  {(Object.keys(stats) as Array<keyof Stats>).map((key) => (
+                    <div key={key} className="border border-border bg-bg-card/80 px-2 py-1 text-center">
+                      <div className="text-[10px] text-text-dim">{statLabel(key)}</div>
+                      <div className="text-sm font-bold text-accent-gold">{stats[key]}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="play-panel play-progress-panel">
+                <div className="mb-3 text-sm font-bold text-accent-gold">片场进度</div>
+                <div className="play-progress-head">
+                  <span>剧本 / 镜头调度</span>
+                  <span>演员反应</span>
+                </div>
+                <div ref={progressListRef} className="play-progress-list">
+                  {shootingProgressRows.length === 0 ? (
+                    <div className="play-progress-empty">正在等第一句开拍。</div>
+                  ) : (
+                    shootingProgressRows.map((row) => (
+                      <div key={row.id} className={`play-progress-row ${row.active ? 'is-active' : ''}`}>
+                        <div className="play-progress-cell">
+                          {row.scriptLine ? (
+                            <>
+                              <div className="play-progress-meta">
+                                {progressLineSpeaker(row.scriptLine)} · {progressLineType(row.scriptLine.type)}
+                              </div>
+                              <p>{row.scriptLine.type === 'dialogue' ? `“${row.scriptLine.text}”` : row.scriptLine.text}</p>
+                              <ScoreDeltaBadges delta={lineScoreImpact(row.scriptLine)?.delta} />
+                            </>
+                          ) : (
+                            <span className="text-text-dim">上一句拍法延伸</span>
+                          )}
+                        </div>
+                        <div className="play-progress-cell reaction">
+                          {row.reactions.length > 0 ? (
+                            row.reactions.map((reaction) => (
+                              <p key={reaction.lineId}>
+                                <span>{reaction.speaker}：</span>
+                                {reaction.text}
+                                <ScoreDeltaBadges delta={lineScoreImpact(reaction)?.delta} />
+                              </p>
+                            ))
+                          ) : (
+                            <span className="text-text-dim">还没有现场反应</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
               {historyOpen && (
@@ -626,15 +827,11 @@ export default function PlayPage() {
 
             <aside className="play-sidebar">
               <div className="play-panel">
-                <div className="mb-3 text-sm font-bold text-accent-gold">片场状态</div>
-                <div className="grid grid-cols-4 gap-2 md:grid-cols-2">
-                  {(Object.keys(stats) as Array<keyof Stats>).map((key) => (
-                    <div key={key} className="border border-border bg-bg-card/80 px-2 py-1 text-center">
-                      <div className="text-[10px] text-text-dim">{statLabel(key)}</div>
-                      <div className="text-sm font-bold text-accent-gold">{stats[key]}</div>
-                    </div>
-                  ))}
-                </div>
+                <div className="mb-1 text-xs text-accent-blue">场记板</div>
+                <p>{currentAct?.title || '正在准备片场。'}</p>
+                <p className="mt-2 text-xs text-text-dim">
+                  本幕干预 {usedThisAct}/{interventionLimit} · 片场每一秒都在烧钱
+                </p>
               </div>
 
               <div className="play-panel">
@@ -654,7 +851,7 @@ export default function PlayPage() {
                           useTool(tool.id);
                         }
                       }}
-                      className="border border-border bg-bg-card/80 px-3 py-3 text-left text-sm transition-colors hover:border-accent-gold disabled:cursor-not-allowed disabled:opacity-35"
+                      className="director-tool-button border border-border bg-bg-card/80 text-left transition-colors hover:border-accent-gold disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       <div className="mb-1 text-lg">{tool.icon}</div>
                       <div className="text-accent-gold">{tool.name}</div>
@@ -664,18 +861,6 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <div className="play-panel">
-                <div className="mb-3 text-sm font-bold text-accent-gold">已拍成的事实</div>
-                <div className="max-h-40 space-y-2 overflow-y-auto text-xs leading-5 text-text-dim">
-                  {canonLedger.length === 0 ? (
-                    <p>还没有改过拍法。</p>
-                  ) : (
-                    canonLedger.slice(-6).map((entry, index) => (
-                      <p key={`${entry.patchId || entry.actId}-${index}`}>· {entry.memory}</p>
-                    ))
-                  )}
-                </div>
-              </div>
             </aside>
           </div>
         }
