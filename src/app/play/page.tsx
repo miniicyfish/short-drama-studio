@@ -395,13 +395,8 @@ export default function PlayPage() {
       const skeleton = scriptSkeleton.find((item) => item.actId === nextAct?.actId);
       const ledger = ledgerOverride || canonLedger;
       if (!session || !nextAct || !skeleton) return;
-      const affected = ledger.some((entry) => {
-        if (!entry.toolType || entry.toolType === 'roll') return false;
-        return (
-          (entry.affectedFutureActs || []).includes(nextAct.actId) ||
-          (entry.futureDirectives && entry.futureDirectives.length > 0)
-        );
-      });
+      const toolEntries = ledger.filter((entry) => entry.toolType && entry.toolType !== 'roll');
+      const affected = toolEntries.some((entry) => (entry.affectedFutureActs || []).includes(nextAct.actId));
       if (!affected || revisedActs[nextAct.actId]) return;
 
       setLoading('按片场事实修订下一幕');
