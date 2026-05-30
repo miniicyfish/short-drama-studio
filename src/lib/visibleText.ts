@@ -1,5 +1,7 @@
 import { ActDraft, InterventionResponse, ShootLine } from './gameTypes';
 
+const MAX_VISIBLE_LINE_CHARS = 46;
+
 const INTERNAL_PATTERNS = [
   /雷点/,
   /炸点/,
@@ -42,7 +44,44 @@ function splitDisplaySentences(text: string): string[] {
   return sentences
     .map((item) => item.trim())
     .map((item) => item.replace(/^[“"‘']+|[”"’']+$/g, '').trim())
+    .flatMap(splitDenseSentence)
     .filter((item) => item && !/^[“”"'‘’。！？!?，,、；;：:]+$/.test(item));
+}
+
+function splitDenseSentence(text: string): string[] {
+  if (text.length <= MAX_VISIBLE_LINE_CHARS) return [text];
+
+  const chunks = text.match(/[^，,、；;：:]+[，,、；;：:]*|[^，,、；;：:]+$/g) || [text];
+  const lines: string[] = [];
+  let current = '';
+
+  for (const rawChunk of chunks) {
+    const chunk = rawChunk.trim();
+    if (!chunk) continue;
+
+    if (!current) {
+      current = chunk;
+      continue;
+    }
+
+    if ((current + chunk).length <= MAX_VISIBLE_LINE_CHARS) {
+      current += chunk;
+    } else {
+      lines.push(current);
+      current = chunk;
+    }
+  }
+
+  if (current) lines.push(current);
+
+  return lines.flatMap((line) => {
+    if (line.length <= MAX_VISIBLE_LINE_CHARS) return [line];
+    const hardChunks: string[] = [];
+    for (let index = 0; index < line.length; index += MAX_VISIBLE_LINE_CHARS) {
+      hardChunks.push(line.slice(index, index + MAX_VISIBLE_LINE_CHARS));
+    }
+    return hardChunks;
+  });
 }
 
 function splitVisibleLine(line: ShootLine): ShootLine[] {

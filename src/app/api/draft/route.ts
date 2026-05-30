@@ -25,6 +25,36 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function filterActReactions(
+  act: ScriptSkeletonAct,
+  reactions: Record<string, ReactionLine[]>
+) {
+  const allowedBeatIds = new Set(
+    act.beats
+      .filter((beat) => beat.defaultSetReaction?.includes('<actor'))
+      .map((beat) => beat.beatId)
+  );
+  const filtered: Record<string, ReactionLine[]> = {};
+
+  for (const [beatId, lines] of Object.entries(reactions)) {
+    if (!allowedBeatIds.has(beatId) || !Array.isArray(lines)) continue;
+
+    const validLines = lines
+      .filter((line) => typeof line?.speaker === 'string' && typeof line?.text === 'string')
+      .map((line) => ({
+        speaker: line.speaker.trim() || '片场',
+        text: line.text.trim(),
+        mood: typeof line.mood === 'string' ? line.mood.trim() : '',
+      }))
+      .filter((line) => line.text.length > 0)
+      .slice(0, 3);
+
+    if (validLines.length > 0) filtered[beatId] = validLines;
+  }
+
+  return filtered;
+}
+
 async function generateActReactions(
   body: DraftRequest,
   act: ScriptSkeletonAct
@@ -34,14 +64,15 @@ async function generateActReactions(
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       const prompt = buildDraftPrompt({ ...body, scriptSkeleton: [act] });
-      const result = await callAI(prompt.system, prompt.user, [], 0.78, 1800, 120000);
+      const result = await callAI(prompt.system, prompt.user, [], 0.78, 1800, 180000);
       const parsed = result.parsed as DraftAIReactions | null;
 
       if (parsed?.reactions && typeof parsed.reactions === 'object') {
+        const reactions = filterActReactions(act, parsed.reactions);
         return {
           actId: act.actId,
           source: 'ai',
-          reactions: parsed.reactions,
+          reactions,
           durationMs: Date.now() - startedAt,
           contentLength: result.content.length,
         };
