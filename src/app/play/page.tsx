@@ -380,9 +380,28 @@ export default function PlayPage() {
         currentSpeakerActor?.avatar
     : null;
   const currentSpeakerDisplayName =
-    currentLine?.type === 'actor_reaction'
-      ? currentSpeakerActor?.name || currentLine?.speaker
-      : currentSpeakerCasting?.scriptRoleName || currentLine?.speaker;
+    currentSpeakerCasting && currentLine?.type !== 'actor_reaction'
+      ? `${currentSpeakerCasting.scriptRoleName}（${currentSpeakerCasting.actorName}）`
+      : currentSpeakerCasting?.actorName || currentLine?.speaker;
+
+  const displaySpeakerForLine = useCallback(
+    (line: ShootLine) => {
+      if (line.type === 'action' || line.type === 'director' || line.type === 'inner') return '镜头';
+      const casting = session?.casting.find((cast) => {
+        const roleNames = cast.scriptRoleName.split('/').map((item) => item.trim());
+        return (
+          line.speaker === cast.actorName ||
+          roleNames.some((name) => line.speaker.includes(name)) ||
+          line.speaker.includes(cast.scriptRoleName)
+        );
+      });
+      if (!casting) return line.speaker;
+      return line.type === 'actor_reaction'
+        ? casting.actorName
+        : `${casting.scriptRoleName}（${casting.actorName}）`;
+    },
+    [session]
+  );
 
   const currentSkeleton = useMemo(
     () => (currentAct ? scriptSkeleton.find((item) => item.actId === currentAct.actId) : null),
@@ -704,7 +723,7 @@ export default function PlayPage() {
         background={currentBackground}
         title={currentAct?.title || session.project.title}
         subtitle={`第 ${actIndex + 1}/${acts.length || 9} 幕 · ${currentAct ? lineIndex + 1 : 0}/${currentAct?.lines.length || 0} 句`}
-        speaker={currentLine?.speaker || '片场'}
+        speaker={currentLine ? displaySpeakerForLine(currentLine) : '片场'}
         text={currentLine?.text || (loading ? loading : '正在准备片场。')}
         kind={vnKindFromLine(currentLine?.type)}
         characters={playCharacters}
@@ -783,7 +802,7 @@ export default function PlayPage() {
                           {row.scriptLine ? (
                             <>
                               <div className="play-progress-meta">
-                                {progressLineSpeaker(row.scriptLine)} · {progressLineType(row.scriptLine.type)}
+                                {displaySpeakerForLine(row.scriptLine)} · {progressLineType(row.scriptLine.type)}
                               </div>
                               <p>{row.scriptLine.type === 'dialogue' ? `“${row.scriptLine.text}”` : row.scriptLine.text}</p>
                               <ScoreDeltaBadges delta={lineScoreImpact(row.scriptLine)?.delta} />
@@ -796,7 +815,7 @@ export default function PlayPage() {
                           {row.reactions.length > 0 ? (
                             row.reactions.map((reaction) => (
                               <p key={reaction.lineId}>
-                                <span>{reaction.speaker}：</span>
+                                <span>{displaySpeakerForLine(reaction)}：</span>
                                 {reaction.text}
                                 <ScoreDeltaBadges delta={lineScoreImpact(reaction)?.delta} />
                               </p>
@@ -822,7 +841,7 @@ export default function PlayPage() {
                   <div className="space-y-2">
                     {historyLines.map((lineItem) => (
                       <div key={lineItem.lineId} className={`border p-3 ${lineTone(lineItem.riskSignal)}`}>
-                        <div className="mb-1 text-xs text-accent-gold">{lineItem.speaker}</div>
+                        <div className="mb-1 text-xs text-accent-gold">{displaySpeakerForLine(lineItem)}</div>
                         <p className="text-xs leading-6 text-text-secondary">
                           {lineItem.type === 'dialogue' ? `“${lineItem.text}”` : lineItem.text}
                         </p>
