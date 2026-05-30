@@ -22,6 +22,10 @@ interface ActGenerationResult {
   error?: string;
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function generateActReactions(
   body: DraftRequest,
   act: ScriptSkeletonAct
@@ -83,7 +87,11 @@ export async function POST(request: Request) {
 
   try {
     const actResults = await Promise.all(
-      body.scriptSkeleton.map((act) => generateActReactions(body, act))
+      body.scriptSkeleton.map(async (act, index) => {
+        // The current provider rate-limits to roughly one request per second.
+        await delay(index * 1200);
+        return generateActReactions(body, act);
+      })
     );
     const aiActCount = actResults.filter((result) => result.source === 'ai').length;
     const parseNullCount = actResults.filter((result) => result.source === 'fallback:parse-null').length;

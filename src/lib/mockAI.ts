@@ -231,6 +231,30 @@ function rewriteCurrentText(input: InterventionRequest) {
     : `导演把这一拍改成"${target}"的方向，现场重新接住当前情绪。`;
 }
 
+function toolFallbackText(
+  input: InterventionRequest,
+  toolName: string,
+  primaryActors: ReturnType<typeof targetActorStates>
+) {
+  const actor = primaryActors[0];
+
+  if (!actor) {
+    return `老赵把「${toolName}」塞进现场调度，所有人停了半拍，又硬着头皮按新的节奏继续拍。`;
+  }
+
+  switch (input.toolType) {
+    case 'cut':
+      return `${actor.actorName}听见喊卡后没有放松，反而把刚才那点不服气憋进下一条，老赵只能让机位继续压近。`;
+    case 'chicken':
+      return `${actor.actorName}接过鸡腿没立刻吃，先看了一眼老赵：“这是安抚，还是算进日结？”现场笑声一乱，刚才的失控被拽成了新的尴尬。`;
+    case 'demo':
+      return `${actor.actorName}照着导演示范重来了一遍，但把动作放大得过了头，老赵在监视器后面沉默了两秒才说继续。`;
+    case 'rewrite':
+    default:
+      return rewriteCurrentText(input);
+  }
+}
+
 function line(
   actId: string,
   index: number,
@@ -272,7 +296,7 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
     lineId: `${input.actId}_mindset_${index + 1}`,
     type: 'actor_reaction' as const,
     speaker: actor.actorName,
-    text: `${actor.actorName}听到「${toolName}」后，没有只按剧本接；他/她把这次干预理解成：${actor.mindset.toolSensitivity[input.toolType]} 老赵看了一眼监视器，知道后面这段会被这个心态带偏。`,
+    text: `${actor.actorName}把这次「${toolName}」理解成了自己的那套片场逻辑，接下来的反应明显偏向：${actor.mindset.toolSensitivity[input.toolType]}`,
     innerThought: null,
     mood: '心态碰撞',
     riskSignal: 'high' as const,
@@ -280,7 +304,7 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
   const replacementText =
     input.toolType === 'rewrite'
       ? rewriteCurrentText(input)
-      : `导演使用「${toolName}」截住了当前失控点。`;
+      : toolFallbackText(input, toolName, primaryActors);
   const rewriteReactionLines =
     input.toolType === 'rewrite'
       ? [
