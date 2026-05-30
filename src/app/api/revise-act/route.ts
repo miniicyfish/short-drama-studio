@@ -11,6 +11,7 @@ import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
 export const maxDuration = 120;
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const body = (await request.json()) as ReviseActRequest;
 
   // 用默认反应作为 fallback，只取当前幕
@@ -25,14 +26,24 @@ export async function POST(request: Request) {
   );
 
   if (!process.env.AI_API_KEY) {
+    console.warn('[ai-debug]', JSON.stringify({
+      route: 'revise-act',
+      source: 'fallback:no-key',
+      actId: body.actId,
+      durationMs: Date.now() - startedAt,
+    }));
     const [revisedAct] = assembleActDrafts([body.scriptSkeletonAct], defaultReactions);
-    return Response.json({ revisedAct: sanitizeVisibleActDrafts([revisedAct])[0] });
+    return Response.json(
+      { revisedAct: sanitizeVisibleActDrafts([revisedAct])[0] },
+      { headers: { 'x-ai-source': 'fallback:no-key' } }
+    );
   }
 
   try {
     const prompt = buildReviseActPrompt(body);
     const result = await callAI(prompt.system, prompt.user, [], 0.82, 4000, 90000);
     const parsed = result.parsed as { reactions?: Record<string, ReactionLine[]> } | null;
+    const source = parsed?.reactions && typeof parsed.reactions === 'object' ? 'ai' : 'fallback:parse-null';
 
     const reactions =
       parsed?.reactions && typeof parsed.reactions === 'object'
@@ -40,10 +51,30 @@ export async function POST(request: Request) {
         : defaultReactions;
 
     const [revisedAct] = assembleActDrafts([body.scriptSkeletonAct], reactions);
-    return Response.json({ revisedAct: sanitizeVisibleActDrafts([revisedAct])[0] });
+    console.info('[ai-debug]', JSON.stringify({
+      route: 'revise-act',
+      source,
+      actId: body.actId,
+      durationMs: Date.now() - startedAt,
+      contentLength: result.content.length,
+    }));
+    return Response.json(
+      { revisedAct: sanitizeVisibleActDrafts([revisedAct])[0] },
+      { headers: { 'x-ai-source': source } }
+    );
   } catch (error) {
     console.error('Revise act error:', error);
+    console.warn('[ai-debug]', JSON.stringify({
+      route: 'revise-act',
+      source: 'fallback:error',
+      actId: body.actId,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'unknown error',
+    }));
     const [revisedAct] = assembleActDrafts([body.scriptSkeletonAct], defaultReactions);
-    return Response.json({ revisedAct: sanitizeVisibleActDrafts([revisedAct])[0] });
+    return Response.json(
+      { revisedAct: sanitizeVisibleActDrafts([revisedAct])[0] },
+      { headers: { 'x-ai-source': 'fallback:error' } }
+    );
   }
 }
