@@ -4,7 +4,6 @@ import {
   assembleActDrafts,
   extractDefaultReactions,
   ReactionLine,
-  scriptSkeleton,
 } from '@/lib/gameData';
 import { buildDraftPrompt } from '@/lib/prompts';
 import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
@@ -32,37 +31,53 @@ async function generateActReactions(
 ): Promise<ActGenerationResult> {
   const startedAt = Date.now();
 
-  try {
-    const prompt = buildDraftPrompt({ ...body, scriptSkeleton: [act] });
-    const result = await callAI(prompt.system, prompt.user, [], 0.85, 2400, 90000);
-    const parsed = result.parsed as DraftAIReactions | null;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const prompt = buildDraftPrompt({ ...body, scriptSkeleton: [act] });
+      const result = await callAI(prompt.system, prompt.user, [], 0.78, 1800, 120000);
+      const parsed = result.parsed as DraftAIReactions | null;
 
-    if (parsed?.reactions && typeof parsed.reactions === 'object') {
+      if (parsed?.reactions && typeof parsed.reactions === 'object') {
+        return {
+          actId: act.actId,
+          source: 'ai',
+          reactions: parsed.reactions,
+          durationMs: Date.now() - startedAt,
+          contentLength: result.content.length,
+        };
+      }
+
       return {
         actId: act.actId,
-        source: 'ai',
-        reactions: parsed.reactions,
+        source: 'fallback:parse-null',
+        reactions: {},
         durationMs: Date.now() - startedAt,
         contentLength: result.content.length,
       };
-    }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      if (attempt === 1 && /429|TooManyRequests|rate limit/i.test(message)) {
+        await delay(2500);
+        continue;
+      }
 
-    return {
-      actId: act.actId,
-      source: 'fallback:parse-null',
-      reactions: {},
-      durationMs: Date.now() - startedAt,
-      contentLength: result.content.length,
-    };
-  } catch (error) {
-    return {
-      actId: act.actId,
-      source: 'fallback:error',
-      reactions: {},
-      durationMs: Date.now() - startedAt,
-      error: error instanceof Error ? error.message : 'unknown error',
-    };
+      return {
+        actId: act.actId,
+        source: 'fallback:error',
+        reactions: {},
+        durationMs: Date.now() - startedAt,
+        error: message,
+      };
+    }
   }
+
+  return {
+    actId: act.actId,
+    source: 'fallback:error',
+    reactions: {},
+    durationMs: Date.now() - startedAt,
+    error: 'AI generation exhausted retries',
+  };
 }
 
 export async function POST(request: Request) {
@@ -89,7 +104,7 @@ export async function POST(request: Request) {
     const actResults = await Promise.all(
       body.scriptSkeleton.map(async (act, index) => {
         // The current provider rate-limits to roughly one request per second.
-        await delay(index * 1200);
+        await delay(index * 1800);
         return generateActReactions(body, act);
       })
     );

@@ -10,6 +10,62 @@ interface AIResponse {
   parsed: Record<string, unknown> | null;
 }
 
+function parseJsonObject(content: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(content);
+  } catch {
+    // Continue to more permissive extraction below.
+  }
+
+  const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[1].trim());
+    } catch {
+      // Continue to balanced object extraction below.
+    }
+  }
+
+  const firstBrace = content.indexOf('{');
+  if (firstBrace < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = firstBrace; i < content.length; i += 1) {
+    const char = content[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(content.slice(firstBrace, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function callAI(
   systemPrompt: string,
   userPrompt: string,
@@ -63,22 +119,7 @@ export async function callAI(
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content || '';
 
-  // 尝试从返回内容中解析 JSON
-  let parsed: Record<string, unknown> | null = null;
-  try {
-    // 尝试直接解析
-    parsed = JSON.parse(content);
-  } catch {
-    // 尝试从 markdown code block 中提取
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      try {
-        parsed = JSON.parse(jsonMatch[1].trim());
-      } catch {
-        // 解析失败，保持 null
-      }
-    }
-  }
+  const parsed = parseJsonObject(content);
 
   return { content, parsed };
 }
