@@ -551,6 +551,7 @@ export default function PlayPage() {
   const useTool = async (toolType: ToolType, rewrite?: { text: string; prompt: string }) => {
     if (!session || !currentAct || !currentLine || !canIntervene) return;
     setAutoMode(false);
+    setRewriteOpen(false);
     const currentBeat = currentSkeleton?.beats.find((beat) => beat.beatId === currentLine.sourceBeatId);
     const currentBeatIndex = currentBeat
       ? currentSkeleton?.beats.findIndex((beat) => beat.beatId === currentBeat.beatId) ?? -1
@@ -591,7 +592,6 @@ export default function PlayPage() {
       setError(err instanceof Error ? err.message : '工具干预失败');
     } finally {
       setLoading(null);
-      setRewriteOpen(false);
     }
   };
 
@@ -843,7 +843,11 @@ export default function PlayPage() {
                   画外内心：{currentLine.innerThought}
                 </div>
               )}
-              {loading && !isBlockingLoading && <LoadingIndicator text={loading} />}
+              {loading && !isBlockingLoading && (
+                <div className="play-panel play-loading-panel">
+                  <LoadingIndicator text={loading} />
+                </div>
+              )}
               {error && <div className="play-panel border-accent-red/40 bg-accent-red/10 text-sm text-accent-red">{error}</div>}
             </div>
 
