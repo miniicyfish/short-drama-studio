@@ -550,7 +550,6 @@ export default function PlayPage() {
 
   const useTool = async (toolType: ToolType, rewrite?: { text: string; prompt: string }) => {
     if (!session || !currentAct || !currentLine || !canIntervene) return;
-    setAutoMode(false);
     setRewriteOpen(false);
     const currentBeat = currentSkeleton?.beats.find((beat) => beat.beatId === currentLine.sourceBeatId);
     const currentBeatIndex = currentBeat
@@ -868,7 +867,6 @@ export default function PlayPage() {
                       key={tool.id}
                       disabled={!canIntervene}
                       onClick={() => {
-                        setAutoMode(false);
                         if (tool.id === 'rewrite') {
                           setSelectedText(currentLine?.text || '');
                           setRewritePrompt('');

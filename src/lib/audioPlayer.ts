@@ -5,8 +5,26 @@ let currentBgmSrc: string | null = null;
 let pendingBgm: { src: string; volume: number } | null = null;
 let audioEnabled = true;
 
+const AUDIO_UNLOCK_KEY = 'short-drama-audio-unlocked';
+
 function canUseAudio() {
   return typeof window !== 'undefined' && typeof Audio !== 'undefined';
+}
+
+function markUnlocked() {
+  unlocked = true;
+  try {
+    window.sessionStorage.setItem(AUDIO_UNLOCK_KEY, '1');
+  } catch {
+    // Session storage may be unavailable in private browsing.
+  }
+}
+
+function flushPendingBgm() {
+  if (!pendingBgm) return;
+  const next = pendingBgm;
+  pendingBgm = null;
+  playBgm(next.src, next.volume);
 }
 
 function fadeOut(audio: HTMLAudioElement) {
@@ -23,15 +41,21 @@ function fadeOut(audio: HTMLAudioElement) {
 
 export function installAudioUnlock() {
   if (!canUseAudio() || unlockInstalled) return;
+  try {
+    if (window.sessionStorage.getItem(AUDIO_UNLOCK_KEY) === '1') {
+      markUnlocked();
+      flushPendingBgm();
+      return;
+    }
+  } catch {
+    // Ignore storage failures and fall back to pointer unlock.
+  }
+
   unlockInstalled = true;
 
   const unlock = () => {
-    unlocked = true;
-    if (pendingBgm) {
-      const next = pendingBgm;
-      pendingBgm = null;
-      playBgm(next.src, next.volume);
-    }
+    markUnlocked();
+    flushPendingBgm();
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);
   };
@@ -81,6 +105,12 @@ export function setAudioEnabled(enabled: boolean) {
 
 export function isAudioEnabled() {
   return audioEnabled;
+}
+
+export function unlockAudioFromGesture() {
+  if (!canUseAudio()) return;
+  markUnlocked();
+  flushPendingBgm();
 }
 
 export function playOneShot(src: string, volume = 0.55) {

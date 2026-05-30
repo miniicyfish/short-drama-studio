@@ -5,7 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import VNStage, { VNCharacter, VNHistoryLine, VNLineKind } from '@/components/VNStage';
-import { installAudioUnlock, playBgm, playOneShot, setAudioEnabled, stopBgm } from '@/lib/audioPlayer';
+import {
+  installAudioUnlock,
+  playBgm,
+  playOneShot,
+  setAudioEnabled,
+  stopBgm,
+  unlockAudioFromGesture,
+} from '@/lib/audioPlayer';
 import { actors, assignCasting, initialStats, project, scriptRoles } from '@/lib/gameData';
 import { Actor, Casting, GameSession, RecruitResult } from '@/lib/gameTypes';
 
@@ -1064,6 +1071,7 @@ export default function Home() {
   );
 
   const beginGame = () => {
+    unlockAudioFromGesture();
     setIntroIndex(0);
     setStage('intro');
     setAutoPlay(true);
@@ -1075,6 +1083,7 @@ export default function Home() {
   };
 
   const start = () => {
+    unlockAudioFromGesture();
     const session: GameSession = {
       project,
       selectedActors,
