@@ -3,6 +3,8 @@ import { RecruitRequest, RecruitResult } from '@/lib/gameTypes';
 import { mockRecruit } from '@/lib/mockAI';
 import { buildRecruitPrompt } from '@/lib/prompts';
 
+export const maxDuration = 60;
+
 function cleanVisibleText(text: string) {
   let value = text.trim();
   const saidIndex = Math.max(value.lastIndexOf('说：'), value.lastIndexOf('说:'));
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
 
   try {
     const prompt = buildRecruitPrompt(body);
-    const result = await callAI(prompt.system, prompt.user, [], 0.75, 2600);
+    const result = await callAI(prompt.system, prompt.user, [], 0.75, 2600, 45000);
     return Response.json(normalizeRecruitResponse(isRecruitResponse(result.parsed) ? result.parsed : mockRecruit(body)));
   } catch (error) {
     console.error('Recruit error:', error);

@@ -9,6 +9,8 @@ import {
 import { buildDraftPrompt } from '@/lib/prompts';
 import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const body = (await request.json()) as DraftRequest;
 

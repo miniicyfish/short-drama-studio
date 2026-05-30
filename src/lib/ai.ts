@@ -16,7 +16,7 @@ export async function callAI(
   history: ChatMessage[] = [],
   temperature = 0.85,
   maxTokens = 2000,
-  timeoutMs = 15000
+  timeoutMs = 45000
 ): Promise<AIResponse> {
   const apiKey = process.env.AI_API_KEY;
   const baseUrl = process.env.AI_BASE_URL || 'https://api.minimax.chat/v1';
