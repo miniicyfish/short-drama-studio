@@ -158,6 +158,34 @@ function renderStateReaction(input: InterventionRequest | ReviseActRequest, reac
   };
 }
 
+function targetActorStates(input: InterventionRequest) {
+  const targets: typeof input.actorStates = [];
+  const add = (actor?: (typeof input.actorStates)[number] | null) => {
+    if (actor && !targets.some((item) => item.actorId === actor.actorId)) targets.push(actor);
+  };
+
+  input.actorStates.forEach((actor) => {
+    const roleParts = actor.scriptRoleName.split('/').map((item) => item.trim());
+    if (
+      input.currentLine.speaker === actor.actorName ||
+      roleParts.some((role) => input.currentLine.speaker.includes(role)) ||
+      input.currentLine.text.includes(actor.scriptRoleName) ||
+      input.currentLine.text.includes(actor.actorName)
+    ) {
+      add(actor);
+    }
+  });
+
+  if (input.currentBeat?.speaker) add(actorStateForRole(input, input.currentBeat.speaker));
+
+  const rolesInReaction = Array.from(
+    (input.currentBeat?.defaultSetReaction || '').matchAll(/<actor role="([^"]+)">/g)
+  ).map((match) => match[1]);
+  rolesInReaction.forEach((roleName) => add(actorStateForRole(input, roleName)));
+
+  return targets;
+}
+
 function extractQuotedRewrite(prompt: string) {
   return (
     prompt.match(/[“"「『](.+?)[”"」』]/)?.[1]?.trim() ||
@@ -237,6 +265,18 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
     chicken: '加鸡腿',
     demo: '导演示范',
   }[input.toolType];
+  const affectedActors = targetActorStates(input);
+  const primaryActors = affectedActors.length > 0 ? affectedActors : input.actorStates.slice(0, 1);
+  const mindsetCollisionLines = primaryActors.slice(0, 2).map((actor, index) => ({
+    ...input.currentLine,
+    lineId: `${input.actId}_mindset_${index + 1}`,
+    type: 'actor_reaction' as const,
+    speaker: actor.actorName,
+    text: `${actor.actorName}听到「${toolName}」后，没有只按剧本接；他/她把这次干预理解成：${actor.mindset.toolSensitivity[input.toolType]} 老赵看了一眼监视器，知道后面这段会被这个心态带偏。`,
+    innerThought: null,
+    mood: '心态碰撞',
+    riskSignal: 'high' as const,
+  }));
   const replacementText =
     input.toolType === 'rewrite'
       ? rewriteCurrentText(input)
@@ -277,6 +317,7 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
     input.remainingLines.length > 0
       ? [
           ...rewriteReactionLines,
+          ...mindsetCollisionLines,
           ...(input.currentBeat?.defaultSetReaction
             ? [
                 (() => {
@@ -309,6 +350,7 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
         ]
       : [
           ...rewriteReactionLines,
+          ...mindsetCollisionLines,
           ...(input.toolType === 'rewrite'
             ? []
             : [
@@ -357,11 +399,11 @@ export function mockIntervention(input: InterventionRequest): InterventionRespon
       affectedFutureActs: ['act_04', 'act_06', 'act_08', 'act_09'],
     },
     statDelta: statDeltaMap[input.toolType],
-    actorStateDelta: input.actorStates.slice(0, 1).map((actor) => ({
+    actorStateDelta: primaryActors.slice(0, 2).map((actor) => ({
       actorId: actor.actorId,
       mood: '被影响',
       pressureDelta: input.toolType === 'cut' || input.toolType === 'demo' ? 1 : 0,
-      biasChange: `${actor.actorName}之后会把这次${toolName}理解进自己的表演里。`,
+      biasChange: `${actor.actorName}之后会按「${actor.mindset.toolSensitivity[input.toolType]}」继续理解这场戏。`,
     })),
     accidentTag: `${toolName}改向`,
     actOutcome: {

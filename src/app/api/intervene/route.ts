@@ -4,7 +4,7 @@ import { mockIntervention } from '@/lib/mockAI';
 import { buildInterventionPrompt } from '@/lib/prompts';
 import { sanitizeVisibleIntervention } from '@/lib/visibleText';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function normalizeRewriteResult(
   body: InterventionRequest,
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   try {
     const prompt = buildInterventionPrompt(body);
-    const result = await callAI(prompt.system, prompt.user, [], 0.85, 3000, 45000);
+    const result = await callAI(prompt.system, prompt.user, [], 0.85, 3000, 90000);
     const response = (result.parsed as ReturnType<typeof mockIntervention> | null) || mockIntervention(body);
     return Response.json(
       sanitizeVisibleIntervention(

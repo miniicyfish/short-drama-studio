@@ -8,7 +8,7 @@ import {
 import { buildReviseActPrompt } from '@/lib/prompts';
 import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const body = (await request.json()) as ReviseActRequest;
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   try {
     const prompt = buildReviseActPrompt(body);
-    const result = await callAI(prompt.system, prompt.user, [], 0.82, 4000, 45000);
+    const result = await callAI(prompt.system, prompt.user, [], 0.82, 4000, 90000);
     const parsed = result.parsed as { reactions?: Record<string, ReactionLine[]> } | null;
 
     const reactions =

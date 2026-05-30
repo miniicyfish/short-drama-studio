@@ -128,7 +128,11 @@ export function buildDraftPrompt(input: DraftRequest) {
 5. 结合 actorRewriteTargets 的 focus 指引，但你的创意判断优先。
 6. 如果通用反应涉及多个演员（多个 <actor> tag），为每个相关演员分别生成反应。
 7. 不要输出任何内部标注（雷点、炸点、AI 指令、canonLedger 等）。
-8. text 只写现场发生的事，不要写"演员心想"、不要解释入组心态。`;
+8. text 只写现场发生的事，不要写"演员心想"、不要解释入组心态。
+9. 这一步必须让"入组心态造成片场事故"可见：每个真实演员在全片至少出现 3 次由 mindset.behaviorBias 或 conflictTriggers 引发的具体片场偏移。
+10. 每个标记点如果 actorRewriteTargets 指向了某个角色，必须优先输出该角色真实演员的 1-3 条反应；只有当这个角色完全不在场时才允许空。
+11. 反应不能只是泛泛写"尴尬/紧张/跑偏"，必须写清演员如何把自己的现实身份、说服词、入组心态误读进当前台词或动作里。
+12. 高压幕 act_02、act_03、act_04、act_06、act_07 必须更明显：至少让相关演员出现一次边界感、职业惯性、自尊、想红、怕被误读、怕丢脸等具体冲突。`;
 
   const user = `请为以下 ${taggedBeats.length} 个标记点生成个性化演员反应。
 
@@ -172,7 +176,15 @@ export function buildInterventionPrompt(input: InterventionRequest) {
 8. replacementCurrentLine 和 patchedRemainingLines 是玩家可见文本，禁止出现"雷点""炸点""如果前文""同步变形""机械保留""工具改写""canonLedger"等幕后编排说明。
 9. 如果工具影响了带 XML actor 标签的反应点，要把真实演员姓名、现实身份和入组心态写进后续 actor_reaction 行里；不要只写角色剧情改变。
 10. 工具结果不要只替换当前一句。replacementCurrentLine 可以改当前可见结果，但 patchedRemainingLines 必须自然展开成一小段新的片场过程：导演动作、演员重新理解、同场演员接不住或接住、剧中剧情继续滑向新方向。
-11. statDelta 数值要克制，单项通常在 -20 到 +20 之间。`;
+11. 必须先判断本次工具主要撞上的演员：优先看 currentLine.speaker、currentBeat.defaultSetReaction 里的 <actor role>、当前台词相关角色，再映射到 actorStates。
+12. 对每个主要受影响演员，必须读取 actorStates[].mindset.toolSensitivity[toolType]、behaviorBias 和 conflictTriggers，并把它转成玩家可见的反应。不要写"因为他的 toolSensitivity"，要写成具体片场行为。
+13. 同一个工具在不同心态下必须有不同后果：
+   - cut：有人会松一口气，有人会觉得被否定，有人会更用力。
+   - rewrite：有人会被救到，有人会觉得被改掉了爆点，有人会误读新词。
+   - chicken：有人觉得是安抚或日结，有人觉得被羞辱或被当便宜劳力。
+   - demo：有人会模仿，有人会油掉，有人会把导演示范放大成新的事故。
+14. actorStateDelta 必须包含主要受影响演员，不要只改第一个演员。biasChange 要写清"这个演员之后会怎样带着这次工具继续演"。
+15. statDelta 必须根据心态碰撞变化，不能只按工具类型固定给分；单项通常在 -20 到 +20 之间。`;
 
   const user = `你在当前句使用工具，请返回当前幕补丁和全局片场事实补丁。
 
@@ -256,7 +268,9 @@ export function buildReviseActPrompt(input: ReviseActRequest) {
 2. 改写规则和开拍前个性化相同：自由度高，可扩写、改情境、删掉。
 3. 语言风格保持一致：尴尬、搞笑、博眼球、炸裂。
 4. 每个 tag 输出 1-3 条反应行，speaker 填真实演员姓名。
-5. 不要输出内部标注。`;
+5. 必须读取 actorStates[].mindset、mood、pressure 和 bias：如果前面工具改变了演员状态，这一幕的反应要承认这个余波。
+6. 不要只写剧情事实变化，必须写演员如何因为自己的入组心态、压力和之前被工具干预过而改变演法。
+7. 不要输出内部标注。`;
 
   const user = `请根据片场事实重新个性化以下幕的演员反应。
 
