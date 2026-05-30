@@ -1,5 +1,5 @@
 import { callAI } from '@/lib/ai';
-import { DraftRequest } from '@/lib/gameTypes';
+import { DraftRequest, ScriptSkeletonAct } from '@/lib/gameTypes';
 import {
   assembleActDrafts,
   extractDefaultReactions,
@@ -10,6 +10,56 @@ import { buildDraftPrompt } from '@/lib/prompts';
 import { sanitizeVisibleActDrafts } from '@/lib/visibleText';
 
 export const maxDuration = 300;
+
+type DraftAIReactions = { reactions?: Record<string, ReactionLine[]> };
+
+interface ActGenerationResult {
+  actId: string;
+  source: 'ai' | 'fallback:parse-null' | 'fallback:error';
+  reactions: Record<string, ReactionLine[]>;
+  durationMs: number;
+  contentLength?: number;
+  error?: string;
+}
+
+async function generateActReactions(
+  body: DraftRequest,
+  act: ScriptSkeletonAct
+): Promise<ActGenerationResult> {
+  const startedAt = Date.now();
+
+  try {
+    const prompt = buildDraftPrompt({ ...body, scriptSkeleton: [act] });
+    const result = await callAI(prompt.system, prompt.user, [], 0.85, 2400, 90000);
+    const parsed = result.parsed as DraftAIReactions | null;
+
+    if (parsed?.reactions && typeof parsed.reactions === 'object') {
+      return {
+        actId: act.actId,
+        source: 'ai',
+        reactions: parsed.reactions,
+        durationMs: Date.now() - startedAt,
+        contentLength: result.content.length,
+      };
+    }
+
+    return {
+      actId: act.actId,
+      source: 'fallback:parse-null',
+      reactions: {},
+      durationMs: Date.now() - startedAt,
+      contentLength: result.content.length,
+    };
+  } catch (error) {
+    return {
+      actId: act.actId,
+      source: 'fallback:error',
+      reactions: {},
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'unknown error',
+    };
+  }
+}
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
@@ -32,22 +82,41 @@ export async function POST(request: Request) {
   }
 
   try {
-    const prompt = buildDraftPrompt(body);
-    const result = await callAI(prompt.system, prompt.user, [], 0.85, 8000, 285000);
-    const parsed = result.parsed as { reactions?: Record<string, ReactionLine[]> } | null;
-    const source = parsed?.reactions && typeof parsed.reactions === 'object' ? 'ai' : 'fallback:parse-null';
+    const actResults = await Promise.all(
+      body.scriptSkeleton.map((act) => generateActReactions(body, act))
+    );
+    const aiActCount = actResults.filter((result) => result.source === 'ai').length;
+    const parseNullCount = actResults.filter((result) => result.source === 'fallback:parse-null').length;
+    const errorCount = actResults.filter((result) => result.source === 'fallback:error').length;
+    const source =
+      aiActCount === body.scriptSkeleton.length
+        ? 'ai:split'
+        : aiActCount > 0
+          ? 'ai:partial'
+          : errorCount > 0
+            ? 'fallback:error'
+            : 'fallback:parse-null';
 
-    const reactions =
-      parsed?.reactions && typeof parsed.reactions === 'object'
-        ? { ...defaultReactions, ...parsed.reactions }
-        : defaultReactions;
+    const aiReactions = actResults.reduce<Record<string, ReactionLine[]>>((acc, result) => {
+      return { ...acc, ...result.reactions };
+    }, {});
+    const reactions = { ...defaultReactions, ...aiReactions };
 
     const episodeDraft = assembleActDrafts(body.scriptSkeleton, reactions);
     console.info('[ai-debug]', JSON.stringify({
       route: 'draft',
       source,
       durationMs: Date.now() - startedAt,
-      contentLength: result.content.length,
+      aiActCount,
+      parseNullCount,
+      errorCount,
+      actResults: actResults.map((result) => ({
+        actId: result.actId,
+        source: result.source,
+        durationMs: result.durationMs,
+        contentLength: result.contentLength,
+        error: result.error,
+      })),
     }));
     return Response.json(
       { episodeDraft: sanitizeVisibleActDrafts(episodeDraft) },

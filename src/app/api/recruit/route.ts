@@ -3,7 +3,7 @@ import { RecruitRequest, RecruitResult } from '@/lib/gameTypes';
 import { mockRecruit } from '@/lib/mockAI';
 import { buildRecruitPrompt } from '@/lib/prompts';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function cleanVisibleText(text: string) {
   let value = text.trim();
@@ -45,18 +45,46 @@ function normalizeRecruitResponse(response: RecruitResponse) {
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const body = (await request.json()) as RecruitRequest;
 
   if (!process.env.AI_API_KEY) {
-    return Response.json(normalizeRecruitResponse(mockRecruit(body)));
+    console.warn('[ai-debug]', JSON.stringify({
+      route: 'recruit',
+      source: 'fallback:no-key',
+      durationMs: Date.now() - startedAt,
+    }));
+    return Response.json(
+      normalizeRecruitResponse(mockRecruit(body)),
+      { headers: { 'x-ai-source': 'fallback:no-key' } }
+    );
   }
 
   try {
     const prompt = buildRecruitPrompt(body);
-    const result = await callAI(prompt.system, prompt.user, [], 0.75, 2600, 45000);
-    return Response.json(normalizeRecruitResponse(isRecruitResponse(result.parsed) ? result.parsed : mockRecruit(body)));
+    const result = await callAI(prompt.system, prompt.user, [], 0.75, 2600, 90000);
+    const source = isRecruitResponse(result.parsed) ? 'ai' : 'fallback:parse-null';
+    console.info('[ai-debug]', JSON.stringify({
+      route: 'recruit',
+      source,
+      durationMs: Date.now() - startedAt,
+      contentLength: result.content.length,
+    }));
+    return Response.json(
+      normalizeRecruitResponse(isRecruitResponse(result.parsed) ? result.parsed : mockRecruit(body)),
+      { headers: { 'x-ai-source': source } }
+    );
   } catch (error) {
     console.error('Recruit error:', error);
-    return Response.json(normalizeRecruitResponse(mockRecruit(body)));
+    console.warn('[ai-debug]', JSON.stringify({
+      route: 'recruit',
+      source: 'fallback:error',
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'unknown error',
+    }));
+    return Response.json(
+      normalizeRecruitResponse(mockRecruit(body)),
+      { headers: { 'x-ai-source': 'fallback:error' } }
+    );
   }
 }
