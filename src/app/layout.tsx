@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '我的短剧超失控',
+  title: '短剧倒退十年而我不变',
   description: 'AI 片场救火互动叙事 Demo',
 };
 

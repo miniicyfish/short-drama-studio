@@ -1094,7 +1094,7 @@ export default function Home() {
       <main className="game-cover-screen">
         <Image
           src="/pixels/game-cover.jpg"
-          alt="短剧退步十年，而我保持不变"
+          alt="短剧倒退十年而我不变"
           fill
           priority
           sizes="100vw"
