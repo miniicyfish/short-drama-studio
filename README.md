@@ -1,10 +1,16 @@
-# 我的短剧超失控 · Short Drama Studio
+# 短剧倒退十年而我不变 · Short Drama Studio
 
 AI 片场救火互动叙事 Demo。
+
+在线试玩：
+
+https://short-drama-studio-zpha.vercel.app/play
 
 ## Run
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -14,7 +20,7 @@ Open `http://localhost:3000`.
 
 The backend API uses OpenAI-compatible chat completions:
 
-```bash
+```env
 AI_API_KEY=your_key
 AI_BASE_URL=https://api.example.com/v1
 AI_MODEL=model_name
